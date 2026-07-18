@@ -1,12 +1,15 @@
 """
-Caller (owner: Cole) — §6. Fan out over the web, find real products matching the spec,
-return a ranked, negotiable RankedOptions table. Does NOT negotiate.
+Caller (owner: Cole) — §6 + challenge §2 (parallel quote gathering).
+
+Fan out over the web + a business call list (Google Places / Yelp), find real products
+matching the spec, return a ranked, negotiable RankedOptions table. Does NOT negotiate.
 
 Strategy:
-  1. If a search API key is present (Tavily / Serper / Brave / Exa), fan out live queries.
-  2. Otherwise fall back to a curated catalog of **real** bridal vendors with clickable
-     URLs — still satisfies the §6 "done when" ("3 ranked real options a human could
-     verify by clicking the URLs") with no keys required for the hackathon demo.
+  1. Build a call list via `call_list.discover_call_list` (Places → Yelp → curated pad)
+     so the demo shows where numbers would come from in the real world.
+  2. If a search API key is present (Tavily / Serper / Brave / Exa), fan out live queries.
+  3. Merge + score with buyer_value; stamp the top options with ≥3 distinct negotiation
+     styles for the agent-to-agent counterparty path (Ella implements seller policy).
 
 Every option is scored with buyer_value.utility(..., offer_attrs=...) and filtered by
 hard-constraint feasibility. unmet_soft is populated as concession fodder.
@@ -24,7 +27,16 @@ from urllib.parse import quote_plus
 import httpx
 
 from . import buyer_value
-from .contracts import Channel, ChannelType, Option, ProductSpec, RankedOptions
+from .call_list import discover_call_list
+from .contracts import (
+    CallListProvenance,
+    Channel,
+    ChannelType,
+    Option,
+    ProductSpec,
+    RankedOptions,
+)
+from .seller_profiles import assign_styles
 
 _VERTICALS_DIR = Path(__file__).resolve().parent.parent / "config" / "verticals"
 
@@ -37,6 +49,8 @@ class _Listing:
     attributes: dict[str, str]
     channel_type: str = "mock"
     channel_endpoint: Optional[str] = None
+    phone: Optional[str] = None
+    call_list_source: Optional[CallListProvenance] = None
 
 
 # Curated real bridal options — verifiable URLs, realistic prices across the demo band.
@@ -346,33 +360,68 @@ def _dedupe(listings: list[_Listing]) -> list[_Listing]:
     return out
 
 
+def _listings_from_call_list(spec: ProductSpec) -> tuple[list[_Listing], CallListProvenance]:
+    entries, provenance = discover_call_list(spec.category)
+    listings: list[_Listing] = []
+    for entry in entries:
+        price = entry.listed_price
+        attrs = entry.attributes or _attr_map(spec)
+        if price <= 0:
+            # Live Places/Yelp hits often lack price — skip until web search fills them,
+            # unless we can still use phone for a voice/mock channel later.
+            continue
+        channel_type = "mock"
+        endpoint = f"mock://seller/{entry.provenance.place_id or entry.vendor}"
+        if entry.phone:
+            # Prefer mock for agent-to-agent; voice endpoint recorded for the live leg.
+            endpoint = f"tel:{entry.phone}"
+        listings.append(
+            _Listing(
+                vendor=entry.vendor,
+                source_url=entry.source_url or "",
+                listed_price=price,
+                attributes=attrs,
+                channel_type=channel_type,
+                channel_endpoint=endpoint,
+                phone=entry.phone,
+                call_list_source=entry.provenance,
+            )
+        )
+    return listings, provenance
+
+
 def _to_option(spec: ProductSpec, listing: _Listing, idx: int) -> Optional[Option]:
     attrs = listing.attributes or _attr_map(spec)
+    if listing.listed_price <= 0:
+        return None
     if not buyer_value.is_feasible(listing.listed_price, spec, attrs):
         return None
     score = buyer_value.utility(listing.listed_price, spec, offer_attrs=attrs)
+    endpoint = listing.channel_endpoint
     return Option(
         option_id=f"opt_{idx}",
         vendor=listing.vendor,
-        source_url=listing.source_url,
+        source_url=listing.source_url or None,
         listed_price=listing.listed_price,
         matched_attributes=dict(attrs),
         unmet_soft=buyer_value.unmet_soft_attributes(spec, attrs),
         match_score=round(score, 3),
         channel=Channel(
             type=cast(ChannelType, listing.channel_type),
-            endpoint=listing.channel_endpoint,
+            endpoint=endpoint,
         ),
+        phone=listing.phone,
+        call_list_source=listing.call_list_source,
     )
 
 
 def search(spec: ProductSpec) -> RankedOptions:
     vertical = _load_vertical(spec.category)
-    listings = _live_search(spec, vertical)
-    if len(listings) < 3:
-        listings = _dedupe(listings + _catalog_for(spec))
-    else:
-        listings = _dedupe(listings)
+    call_listings, call_provenance = _listings_from_call_list(spec)
+    web_listings = _live_search(spec, vertical)
+    # Always merge the curated catalog pad so soft-attr diversity stays available
+    # even when the Places-shaped call list already has ≥3 priced hits.
+    listings = _dedupe(call_listings + web_listings + _catalog_for(spec))
 
     options: list[Option] = []
     for listing in listings:
@@ -385,4 +434,11 @@ def search(spec: ProductSpec) -> RankedOptions:
     for i, opt in enumerate(options, start=1):
         options[i - 1] = opt.model_copy(update={"option_id": f"opt_{i}"})
 
-    return RankedOptions(spec_id=spec.spec_id, options=options[:8])
+    # Stamp ≥3 distinct negotiation styles for the agent-to-agent counterparty path.
+    options = assign_styles(options[:8])
+
+    return RankedOptions(
+        spec_id=spec.spec_id,
+        options=options,
+        call_list_provenance=call_provenance,
+    )

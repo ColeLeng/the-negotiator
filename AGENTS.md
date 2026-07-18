@@ -14,8 +14,10 @@ Optional search keys (`TAVILY_API_KEY`, `SERPER_API_KEY`, `BRAVE_API_KEY`,
 
 ### Cole-owned modules
 - `negotiator/buyer_value.py` — multi-attr utility; keep price-first call sites working.
-- `negotiator/caller.py` — curated real bridal catalog + optional live search.
+- `negotiator/caller.py` — call list (Places/Yelp/curated) + optional live search + style stamps.
+- `negotiator/call_list.py` · `seller_profiles.py` · `quote_capture.py` — a2a handoff.
 - `negotiator/guard.py` — outbound competing-quote honesty + inbound sanitize.
+- `docs/caller-a2a-requirements.md` · `docs/ella-seller-a2a-requirements.md` — a2a contracts.
 - `ui/` — Next.js demo (table + SSE ticker + transcript).
 
 ### Run / test (see also README "Getting started")

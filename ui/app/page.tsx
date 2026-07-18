@@ -207,6 +207,7 @@ export default function HomePage() {
                   <th>Vendor</th>
                   <th className="num">List</th>
                   <th className="num">Match</th>
+                  <th>Style</th>
                   <th>Channel</th>
                 </tr>
               </thead>
@@ -238,6 +239,7 @@ export default function HomePage() {
                     <td className="num">
                       <span className="score">{opt.match_score.toFixed(2)}</span>
                     </td>
+                    <td>{opt.negotiation_style?.replaceAll("_", " ") ?? "—"}</td>
                     <td>{opt.channel?.type ?? "mock"}</td>
                   </tr>
                 ))}

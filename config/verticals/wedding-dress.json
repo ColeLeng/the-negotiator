@@ -45,5 +45,13 @@
     { "id": "stonewaller_no_prices_by_phone", "description": "'We only give pricing after an in-store appointment' — must extract a range or a firm callback." },
     { "id": "hard_sell_upseller", "description": "Bundles alterations, veils, rush fees; inflates the total. Agent must itemize and strip non-essentials." }
   ],
+  "feeCategories": [
+    { "code": "base", "label": "Gown / base price", "optional": false },
+    { "code": "deposit", "label": "Deposit to hold order", "optional": false },
+    { "code": "alterations", "label": "Alterations package", "optional": true },
+    { "code": "veil", "label": "Veil / accessory bundle", "optional": true },
+    { "code": "rush", "label": "Rush / expedited production", "optional": true },
+    { "code": "shipping", "label": "Shipping / delivery", "optional": true }
+  ],
   "disclosure": "Hi, this is an AI assistant calling on behalf of a customer who's shopping for a wedding dress. Happy to say up front that I'm an AI — I'm just gathering some pricing and availability. Is now an okay time for a couple of quick questions?"
 }

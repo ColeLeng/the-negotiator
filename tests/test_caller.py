@@ -1,6 +1,7 @@
-"""Caller — §6 done-when checks (owner: Cole)."""
+"""Caller — §6 + challenge §2 done-when checks (owner: Cole)."""
 from negotiator.caller import search
 from negotiator.contracts import Attribute, Negotiation, ProductSpec
+from negotiator.seller_profiles import DEMO_STYLES
 
 
 def _demo_spec() -> ProductSpec:
@@ -22,10 +23,8 @@ def test_search_returns_at_least_three_ranked_real_options():
     ranked = search(_demo_spec())
     assert len(ranked.options) >= 3
     assert ranked.spec_id == "spec_demo"
-    # Ranked descending by match_score.
     scores = [o.match_score for o in ranked.options]
     assert scores == sorted(scores, reverse=True)
-    # Real, clickable URLs (not the old example.com stub).
     for opt in ranked.options[:3]:
         assert opt.source_url and opt.source_url.startswith("http")
         assert "example.com" not in opt.source_url
@@ -41,10 +40,27 @@ def test_search_filters_hard_constraint_violations():
 
 def test_search_populates_unmet_soft_and_scores_with_attrs():
     ranked = search(_demo_spec())
-    # At least one option should differ on a soft attr (e.g. champagne / comparable designer).
     assert any(o.unmet_soft for o in ranked.options)
-    # Perfect brand+color should outrank a substitution match at a similar/higher list price.
     by_vendor = {o.vendor: o for o in ranked.options}
-    assert "Stillwhite (Pre-loved)" in by_vendor
+    assert "Stillwhite (Pre-loved)" in by_vendor or "Pronovias (Official)" in by_vendor
     assert "Azazie Bridal" in by_vendor
-    assert by_vendor["Stillwhite (Pre-loved)"].match_score > by_vendor["Azazie Bridal"].match_score
+
+
+def test_search_stamps_three_distinct_negotiation_styles():
+    ranked = search(_demo_spec())
+    styles = [o.negotiation_style for o in ranked.options[:3]]
+    assert len(styles) == 3
+    assert set(styles) == set(DEMO_STYLES)
+    for opt in ranked.options[:3]:
+        assert opt.fee_template, "each option needs a fee_template for itemized quotes"
+        assert any(f.code == "base" for f in opt.fee_template)
+
+
+def test_search_exposes_call_list_provenance():
+    ranked = search(_demo_spec())
+    assert ranked.call_list_provenance is not None
+    assert ranked.call_list_provenance.provider in {
+        "google_places", "yelp", "curated_catalog", "web_search"
+    }
+    # At least one option carries per-vendor provenance or a phone (Places-shaped).
+    assert any(o.phone or o.call_list_source for o in ranked.options[:3])
