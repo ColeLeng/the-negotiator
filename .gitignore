@@ -1,34 +1,32 @@
-# dependencies
-node_modules/
-.pnp
-.pnp.js
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# env & secrets
+# ── env & secrets ───────────────────────────────────────────────────────────
 .env
 .env.local
 .env.*.local
 
-# build output
-dist/
-build/
-*.tsbuildinfo
-
-# logs
-logs/
+# ── Node / Next.js UI ───────────────────────────────────────────────────────
+node_modules/
+ui/.next/
+ui/out/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# recordings & transcripts (may contain PII — keep out of git)
-evals/golden-calls/
+# ── recordings & transcripts (may contain PII — keep out of git) ────────────
 recordings/
+evals/golden-calls/
 *.wav
 *.mp3
 
-# OS / editor
+# ── OS / editor ─────────────────────────────────────────────────────────────
 .DS_Store
-Thumbs.db
 .idea/
 .vscode/
 *.swp

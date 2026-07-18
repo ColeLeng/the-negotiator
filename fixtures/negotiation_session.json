@@ -1,0 +1,60 @@
+{
+  "session_id": "neg_opt_3",
+  "option_id": "opt_3",
+  "spec_id": "spec_demo",
+  "status": "agreed",
+  "current_price": 1831.2,
+  "current_terms": {},
+  "batna_utility": 0.5,
+  "messages": [
+    {
+      "ts": null,
+      "from": "buyer",
+      "intent": "open",
+      "price": 1800.0,
+      "terms_delta": {},
+      "text": null,
+      "rationale": "Open at target price."
+    },
+    {
+      "ts": null,
+      "from": "seller",
+      "intent": "concede",
+      "price": 1875.3,
+      "terms_delta": {},
+      "text": null,
+      "rationale": "Concede to $1875 (floor $1361; inventory pressure lowers it)."
+    },
+    {
+      "ts": null,
+      "from": "buyer",
+      "intent": "counter",
+      "price": 1816.67,
+      "terms_delta": {},
+      "text": null,
+      "rationale": "Counter $1817 (Boulware round 1/6)."
+    },
+    {
+      "ts": null,
+      "from": "seller",
+      "intent": "concede",
+      "price": 1831.2,
+      "terms_delta": {},
+      "text": null,
+      "rationale": "Concede to $1831 (floor $1361; inventory pressure lowers it)."
+    },
+    {
+      "ts": null,
+      "from": "buyer",
+      "intent": "accept",
+      "price": 1831.2,
+      "terms_delta": {},
+      "text": null,
+      "rationale": "Seller $1831 within walk-away and beats BATNA (utility 0.95 \u2265 0.50)."
+    }
+  ],
+  "outcome": {
+    "status": "agreed",
+    "final_price": 1831.2
+  }
+}

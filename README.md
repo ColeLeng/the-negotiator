@@ -2,125 +2,119 @@
 
 > **Voice agents that call, compare, and haggle — pick your market, never overpay again.**
 
-Built for the **Hack-Nation 6th Global AI Hackathon** — Challenge 01, *The Negotiator*, powered by **ElevenLabs** (in collaboration with the MIT Club of Northern California and the MIT Club of Germany).
+Built for the **Hack-Nation 6th Global AI Hackathon** — Challenge 01, *The Negotiator*, powered by **ElevenLabs** (with the MIT Club of Northern California and the MIT Club of Germany).
 
-An end-to-end voice-agent system that, for a market whose real prices only exist over the phone, **gathers real quotes, reports them in comparable form, and negotiates the best deal** — closing the gap between the price you'd pay and the price you *could* have paid.
+An agent-to-agent negotiation system that takes a customer's requirements for a **high-consideration, quote-based product**, finds **real comparable options**, and runs **live multi-round negotiations** with seller agents — trading flexible attributes against price via ZOPA logic — then returns a ranked recommendation backed by call transcripts. The pitch-critical thing we show live: **a real price that actually moves during a negotiation**, driven by dynamics, not a script.
+
+> **📐 Canonical build spec:** [`docs/technical-architecture.md`](docs/technical-architecture.md) (Suman) — frozen data contracts, per-owner module I/O, buyer/seller value + ZOPA models, orchestrator + shared blackboard, channels (mock/voice/UCP), honesty guard, and the hour-by-hour parallel build plan. This README is the map; that doc is the territory.
 
 ---
 
 ## The problem
 
-Some markets never publish a real price. Moving is the best-documented example: real quotes for the *identical* 45-mile move range from **\$1,158 to \$6,506** — a 5.6× spread for the same work. Sight-unseen phone estimates are **40% more likely** to end in a final bill above the quote. The only defense is to call 5–8 operators, describe the same job each time, sit through hold music, and negotiate fee structures that are deliberately hard to compare.
+Some markets never publish a real price. Moving is the best-documented example: real quotes for the *identical* 45-mile move range from **\$1,158 to \$6,506** — a 5.6× spread for the same work. Sight-unseen phone estimates are **40% more likely** to end above the quote. The only defense is to call 5–8 operators, describe the same job each time, and negotiate fee structures deliberately hard to compare. **Almost nobody does this.**
 
-**Almost nobody does this.** That gap is what The Negotiator closes — and moving is only the beachhead. The same system generalizes to any phone-priced market: **car buying, medical bills, contractor bids, freight, equipment rental, wedding vendors.**
+## Our vertical: **customized DTC** (config-swappable)
 
-## Our vertical: **Wedding-dress DTC** (config-swappable)
-
-We picked a **customized, one-time, high-emotion purchase** where prices are opaque, alternatives are plentiful, and buyers have zero leverage and zero time. The buyer describes what she wants once; the agents do the shopping and haggling.
-
-Vertical-specific parameters — taxonomy, price benchmarks, red-flag rules, negotiation levers, counterparty styles — live in **[`config/verticals/`](config/verticals/)**. Switching from wedding dresses to movers is a **config swap, not a rewrite** ([`wedding-dress.json`](config/verticals/wedding-dress.json) → [`moving.json`](config/verticals/moving.json)).
+We picked a **customized, one-time, high-emotion purchase** — made-to-order bridal — where prices are opaque, alternatives are plentiful, and buyers have zero leverage and zero time. The buyer describes what she wants once; the agents shop and haggle. Vertical-specific parameters live in [`config/verticals/`](config/verticals/) — switching to movers is a **config swap, not a rewrite**.
 
 ---
 
-## Architecture — one job spec, three buyer-side beats + the other end of the line
-
-> **📐 Canonical build spec:** [`docs/technical-architecture.md`](docs/technical-architecture.md) (Suman) — frozen data contracts, per-owner module I/O, buyer/seller value + ZOPA models, orchestrator + shared blackboard, pluggable channels (mock/voice/UCP), honesty guard, and the hour-by-hour parallel build plan. The map below is the conceptual overview; in the technical spec the **Closer** is realized as the **Buyer Agent + Orchestrator + negotiation loop**, coordinating through a shared **blackboard** for live, honest BATNA leverage.
+## Architecture — one spec, three buyer-side beats + the other end of the line
 
 ```mermaid
 flowchart LR
     U([Buyer]) -->|voice interview / documents| E
-    subgraph E[1 · The Estimator]
+    subgraph E[1 · Estimator]
       direction TB
       E1[ElevenLabs voice intake]
       E2[Document parse: photos, quotes, bills]
-      E1 & E2 --> JS[(Structured Job Spec\nconfirmed by user)]
+      E1 & E2 --> JS[(ProductSpec + ZOPA\nconfirmed by user)]
     end
     JS -->|reused verbatim| C
-    subgraph C[2 · The Caller]
+    subgraph C[2 · Caller]
       direction TB
-      C1[Build call list\nGoogle Places / Yelp]
-      C2[Parallel outbound calls\nBatch / Twilio / SIP]
-      C1 --> C2 --> Q[(Itemized quotes\ncomparable form)]
+      C1[Fan-out search\nExa / Tavily / Places]
+      C1 --> Q[(RankedOptions\ncomparable + BATNA)]
     end
-    Q --> CL
-    subgraph CL[3 · The Closer]
+    Q --> O
+    subgraph O[3 · Orchestrator + Buyer Agents]
       direction TB
-      CL1[Leverage competing bids]
-      CL2[Push on fees · red-flag rules]
-      CL3[Ranked report + transcript evidence]
+      O1[Spawn top-N sessions]
+      O2[Buyer value / ZOPA model]
+      BB[(Shared blackboard\nlive BATNA leverage)]
+      O1 <--> BB
     end
-    CL --> R([Recommended deal\nplain-language report])
+    O <-->|NegotiationMessages · guard + channel| S
     subgraph S[The other end of the line]
       direction TB
-      S1[Seller-side agent\ntough / stonewaller / upseller]
+      S1[Seller agents\ntough / stonewaller / upseller\nhidden floor + concession policy]
     end
-    C2 <-->|agent-to-agent · UCP| S1
-    CL1 <-->|negotiate · UCP| S1
+    O --> R([Ranked recommendation\n+ transcripts, moving price])
 ```
 
-The **[Structured Job Spec](schemas/job-spec.schema.json)** is the contract that ties the buyer-side modules together: built once (by voice **and** at least one document type), **confirmed by the user**, then **reused verbatim** on every call so every quote is for the exact same job. The buyer agents negotiate against a **seller-side counterparty agent** — ideally over **UCP (Universal Commerce Protocol)** — which is what makes a price actually move.
+The **contracts in [`negotiator/contracts.py`](negotiator/contracts.py)** are the integration surface — freeze them first, stub outputs to match, integrate on mocks, then improve behind stable interfaces:
 
-### 1 · The Estimator — *intake by interview or documents*
-An intake agent builds a complete, structured job spec — the thing that makes a later quote *binding rather than bait*. Two paths, both producing the **same** spec:
-- **Voice interview** on the ElevenLabs Agents Platform — asks what a professional estimator would ask.
-- **Document intake** — photos, existing quotes, bills, inventory lists → parsed via vision/OCR into the identical schema.
+- **`ProductSpec`** (Estimator → Caller) — schema.org `Product` + attributes tagged hard/soft with weights & substitutions + a `negotiation` block (`target_price`, `reservation_price`).
+- **`RankedOptions`** (Caller → Orchestrator) — real vendor options with `match_score` + a `channel`; the 2nd-best seeds the 1st's **BATNA**.
+- **`NegotiationSession` / `NegotiationMessage`** — the runtime + transcript; `current_price` is the moving number the UI watches.
 
-The user **confirms the spec** before any call is made. → [`packages/estimator`](packages/estimator/)
+### 1 · Estimator — *intake by interview or documents* (Jagger)
+Turns messy human input into a clean `ProductSpec` with ZOPA parameters. Voice interview (ElevenLabs) **and** a document path, both producing the same schema, confirmed before any call. → [`negotiator/estimator.py`](negotiator/estimator.py)
 
-### 2 · The Caller — *parallel quote gathering*
-Phones the market and extracts an **itemized, comparable quote** from each call. The call list is built programmatically (Google Places / Yelp), calls run in parallel (Batch Calling / Twilio / SIP), and the agent survives real friction — interruptions, "someone will call you back", vague answers. Demonstrated against **≥3 distinct counterparty styles**: the tough negotiator, the stonewaller who won't give prices by phone, the hard-sell upseller. → [`packages/caller`](packages/caller/)
+### 2 · Caller — *parallel quote gathering* (Jagger)
+Fans out over the web (Exa/Tavily/Serper) + business listings (Google Places/Yelp) for **real** options, scores each with the buyer value function, returns a ranked `RankedOptions`. → [`negotiator/caller.py`](negotiator/caller.py)
 
-> **Two research approaches, one comparable output.** Phone inquiry (non-transparent data) *and* AI-search / exposed-API fan-out both land as citations in the same quote store — so the buyer gets one apples-to-apples table regardless of how the price was sourced.
+### 3 · Buyer Agent + Orchestrator — *negotiation & reporting* (Suman)
+The Orchestrator spawns one **Buyer Agent ⇄ Seller Agent** session per top-N option, each Buyer Agent maximizing utility with **honest** leverage only (a competing quote must exist on the shared **blackboard**), applying red-flag/BATNA logic, then ranks the closed deals with transcript citations. → [`negotiator/orchestrator.py`](negotiator/orchestrator.py) · [`negotiator/agents/buyer_agent.py`](negotiator/agents/buyer_agent.py) · [`negotiator/comms/`](negotiator/comms/)
 
-### 3 · The Closer — *negotiation & reporting*
-With quotes in hand, the agent **negotiates**: leverages one bid against another ("I have a binding quote for \$850 — can you beat it?"), pushes on fees, applies **red-flag rules** (any quote 30%+ below market is a *warning*, not a win), and produces a **ranked report** the buyer can trust — recommended deal, full transcripts and recordings, itemized fee breakdowns, and a plain-language explanation of *why*. → [`packages/closer`](packages/closer/)
-
-### The other end of the line — *the Seller-side agent*
-The counterparty, built as agents rather than a script. Vendor/seller agents take the Caller's calls and hold the line against the Closer — the **tough negotiator**, the **stonewaller** who won't price by phone, the **hard-sell upseller**. Running the buyer agents *against* real seller agents — ideally negotiating over **UCP (Universal Commerce Protocol)** — is what makes a price actually move during a call, instead of a scripted screenplay. Voice (ElevenLabs) is the required top layer; the agent-to-agent negotiation logic underneath is the reusable, Citable-relevant bet. → [`packages/seller-agent`](packages/seller-agent/)
+### The other end of the line — the **Seller-side agent** (Ella)
+Vendor/counterparty agents with **hidden reservation prices + inventory-driven concession policies** (tough negotiator / stonewaller / upseller). A seller on aging stock has a lower `dynamic_floor` and concedes further — so the price **genuinely moves**, emergent from two private states, not a script. → [`negotiator/agents/seller_agent.py`](negotiator/agents/seller_agent.py) · [`negotiator/seller_value.py`](negotiator/seller_value.py)
 
 ---
 
 ## The conversation is the product
 
-Voice is not a skin on a chatbot — it's the mechanism of trust on both ends of the call. Four things we handle explicitly (see [`docs/architecture.md`](docs/architecture.md#the-conversation-requirement)):
-
 | Requirement | How we handle it |
 |---|---|
-| **Who is the agent speaking for?** | Discloses up front that it's an AI calling on behalf of a customer; answers *"am I talking to a robot?"* gracefully and honestly, without losing the quote. |
-| **Surviving friction** | Barge-in handling, low latency, turn-taking; copes with busy dispatchers who interrupt, answer vaguely, and multitask. |
-| **The honesty line** | May use competing bids as leverage — but **never** invents inventory, fakes a bid, or misrepresents the job. Constrained in code and prompt. |
-| **How every call ends** | A **structured outcome** every time: an itemized quote, a callback commitment, or a documented decline — never a vague *"they said around two thousand."* |
+| **Who is the agent speaking for?** | Discloses up front it's an AI on behalf of a customer; answers *"am I talking to a robot?"* honestly, without losing the quote. |
+| **Surviving friction** | Barge-in, latency, turn-taking; copes with busy dispatchers who interrupt and multitask. |
+| **The honesty line** | Leverage only from **real** BATNA/blackboard rows — never invents a competing bid or inventory. Enforced by the anti-injection [`guard`](negotiator/guard.py). |
+| **How every call ends** | A **structured outcome** every time: itemized quote, callback commitment, or documented decline — never a vague range. |
 
 ---
 
 ## Tech stack
 
-- **[ElevenLabs Agents Platform](https://elevenlabs.io/docs)** — conversational agents: system prompts, tools, knowledge bases, agent transfer, human handoff.
-- **Batch Calling / Twilio / SIP** — parallel real outbound calls.
-- **Agent Tools & MCP** — log structured quotes mid-call, look up price benchmarks, write results to the comparison backend.
-- **Google Places / Yelp Fusion / OSM** — build the call list programmatically (business numbers, categories, ratings by location).
-- **Vision / OCR** — turn photos, existing quotes, and bills into the structured job spec.
-- **TypeScript monorepo** (npm workspaces) with a shared, typed job-spec + quote model.
+- **Backend:** Python + FastAPI, `asyncio` for parallel sessions.
+- **Agents:** Claude via the Anthropic API (Estimator, Buyer/Seller agents).
+- **Contracts:** Pydantic models mirroring schema.org `Product` + `Offer` JSON-LD.
+- **Search (Caller):** Exa / Tavily / Serper / Brave; Google Places / Yelp for call lists.
+- **Voice leg:** Vapi / Retell / Bland / Twilio (TTS out, STT in) — one live call.
+- **Protocol:** UCP as a pluggable `SellerChannel` adapter.
+- **Frontend:** Next.js, SSE/websocket for the live price ticker + transcript.
 
 ## Repo structure
 
 ```
 the-negotiator/
-├── docs/
-│   ├── architecture.md        # data flow, the conversation requirement, honesty constraints
-│   └── challenge-brief.md      # the hackathon challenge, summarized
-├── schemas/
-│   └── job-spec.schema.json    # THE contract — one spec, reused verbatim across every call
-├── config/verticals/
-│   ├── wedding-dress.json       # primary vertical (DTC)
-│   └── moving.json              # second vertical — proves "config, not code"
-├── packages/
-│   ├── shared/                  # typed JobSpec, Quote, NegotiationOutcome models
-│   ├── estimator/               # module 1 — intake (voice + documents) → job spec
-│   ├── caller/                  # module 2 — parallel quote gathering
-│   ├── closer/                  # module 3 — negotiation + ranked report
-│   └── seller-agent/            # the other end of the line — counterparty vendor agents
-└── evals/                       # golden calls + eval sets (fee extraction, red-flag detection)
+├── negotiator/                  # the Python package (contract-first)
+│   ├── contracts.py             # FROZEN Pydantic models — the integration surface
+│   ├── estimator.py             # Jagger — estimate(text) -> ProductSpec
+│   ├── caller.py                # Jagger — search(spec) -> RankedOptions
+│   ├── buyer_value.py           # Cole + Kazi — utility / feasibility / concession (pure)
+│   ├── seller_value.py          # Ella — surplus / dynamic_floor (pure)
+│   ├── agents/{base,buyer_agent,seller_agent}.py
+│   ├── comms/{loop,channels,blackboard}.py   # Suman — engine + Mock/Voice/UCP + blackboard
+│   ├── guard.py                 # note-taker — honesty + anti-injection
+│   └── orchestrator.py          # Suman — fan out top-N, rank, recommend
+├── app/main.py                  # FastAPI surface for the demo UI
+├── ui/                          # Next.js demo (note-taker) — table + ticker + transcript
+├── tests/                       # pytest — value-model + negotiation ("done when" checks)
+├── run_demo.py                  # end-to-end mock: a moving price, no keys/network
+├── docs/                        # technical-architecture.md (canonical) · architecture.md · challenge-brief.md
+├── config/verticals/            # config-not-code reference data (wedding-dress / moving)
+└── pyproject.toml · requirements.txt · .env.example
 ```
 
 ## Getting started
@@ -128,34 +122,40 @@ the-negotiator/
 ```bash
 git clone https://github.com/ColeLeng/the-negotiator.git
 cd the-negotiator
-cp .env.example .env      # fill in ElevenLabs, Twilio, Google Places keys
-npm install               # installs all workspaces
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env               # fill keys when wiring the real modules
+
+python run_demo.py                 # end-to-end MOCK — watch the price move (no keys needed)
+pytest -q                          # value-model + negotiation checks
+uvicorn app.main:app --reload      # API for the demo UI  →  GET /demo
 ```
 
-Each module has its own README with what it owns and how to run it. Start with the [Structured Job Spec](schemas/job-spec.schema.json) — it's the interface every module agrees on.
+`run_demo.py` runs intake → search → parallel negotiations → ranked recommendation entirely on mocks, printing a genuinely moving price per session. Start any module by stubbing its output to the [`contracts.py`](negotiator/contracts.py) shape — downstream owners integrate against you before your logic is done.
 
-## Team & roles
+## Team & roles  *(from Suman's spec §4.4)*
 
 | Area | Owner |
 |---|---|
-| Infra — ElevenLabs + telephony + market-discovery keys | **Cole** |
-| The Estimator — voice + document intake → job spec | **Jagger** |
-| The Caller — call list + parallel quote-gathering fan-out | **Cole** |
-| The Closer — negotiation loop + ranked reporting | **Suman** |
-| Seller-side agent — counterparty vendor agents, agent-to-agent via UCP | **Ella** |
-| Market research — UCP/ZOPA, market sizing (\$ & #), one-time/custom markets | **Jagger** |
-| Demo + eval harness — golden calls, 3 styles, final report | *up for grabs* |
+| Data-contract freeze (`negotiator/contracts.py`) | **Suman** + note-taker |
+| Estimator (`estimator.py`) | **Jagger** |
+| Caller (`caller.py`) | **Jagger** |
+| Buyer value / ZOPA model (`buyer_value.py`) | **Cole + Kazi** |
+| Buyer Agent + Orchestrator + loop + channels + blackboard | **Suman** |
+| Seller Agent + seller value model | **Ella** |
+| Honesty + anti-injection guard (`guard.py`) | **note-taker** |
+| Demo UI (`ui/`) | **note-taker** |
 
 See the [Linear project](https://linear.app/citable/project/the-negotiator-hack-nation-elevenlabs-5adf25d81103) for the live task board.
 
 ## What "done" looks like
 
-- [ ] Closed loop: **intake → calls → negotiation → ranked recommendation** with transcript evidence.
-- [ ] **One** structured job spec, built by voice **and** ≥1 document type, confirmed by the user, reused verbatim on every call.
-- [ ] Live calls demonstrated against **≥3 distinct negotiation styles**; every quote captured in structured, comparable form with fees itemized.
-- [ ] **≥1 negotiation** where price or terms *measurably change during the call* because of leverage the agent gathered — not because the script said so.
+- [ ] Closed loop: **intake → search → negotiation → ranked recommendation** with transcript evidence.
+- [ ] One structured `ProductSpec`, built by voice **and** ≥1 document type, confirmed and reused verbatim.
+- [ ] Live calls against **≥3 distinct negotiation styles**; every quote itemized & comparable.
+- [ ] **≥1 negotiation** where the price *measurably moves during the call* from real leverage — not a script.
 - [ ] AI disclosure + honesty constraints hold; friction (hang-ups, refusals, "are you a robot?") handled gracefully.
-- [ ] Every call ends in a structured outcome; final report ranks all quotes and cites recordings/transcripts.
+- [ ] Every call ends in a structured outcome; the final report ranks all options and cites transcripts.
 
 ---
 

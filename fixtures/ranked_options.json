@@ -1,0 +1,60 @@
+{
+  "spec_id": "spec_demo",
+  "options": [
+    {
+      "option_id": "opt_3",
+      "vendor": "Sample-Sale Z",
+      "source_url": "https://example.com/listing/3",
+      "listed_price": 1890.0,
+      "currency": "USD",
+      "matched_attributes": {
+        "color": "ivory",
+        "size": "US 8",
+        "brand": "Pronovias"
+      },
+      "unmet_soft": [],
+      "match_score": 0.85,
+      "channel": {
+        "type": "mock",
+        "endpoint": null
+      }
+    },
+    {
+      "option_id": "opt_2",
+      "vendor": "Atelier Y",
+      "source_url": "https://example.com/listing/2",
+      "listed_price": 2100.0,
+      "currency": "USD",
+      "matched_attributes": {
+        "color": "ivory",
+        "size": "US 8",
+        "brand": "Pronovias"
+      },
+      "unmet_soft": [],
+      "match_score": 0.5,
+      "channel": {
+        "type": "mock",
+        "endpoint": null
+      }
+    },
+    {
+      "option_id": "opt_1",
+      "vendor": "Bridal Boutique X",
+      "source_url": "https://example.com/listing/1",
+      "listed_price": 2400.0,
+      "currency": "USD",
+      "matched_attributes": {
+        "color": "ivory",
+        "size": "US 8",
+        "brand": "Pronovias"
+      },
+      "unmet_soft": [],
+      "match_score": 0.0,
+      "channel": {
+        "type": "mock",
+        "endpoint": null
+      }
+    }
+  ],
+  "generated_at": null
+}
