@@ -18,6 +18,8 @@ Some markets never publish a real price. Moving is the best-documented example: 
 
 We picked a **customized, one-time, high-emotion purchase** — made-to-order bridal — where prices are opaque, alternatives are plentiful, and buyers have zero leverage and zero time. The buyer describes what she wants once; the agents shop and haggle. Vertical-specific parameters live in [`config/verticals/`](config/verticals/) — switching to movers is a **config swap, not a rewrite**.
 
+> **🔬 Narrowed demo scenario + market data:** [`docs/wedding-dress-research.md`](docs/wedding-dress-research.md) (Cole) — narrows the vertical to *one bride, one look, three channels that genuinely haggle* (resale / sample sale / made-to-order), with cited 2026 price bands per channel, red-flag thresholds, negotiation levers, and a runnable end-to-end scenario in [`fixtures/wedding_dress_scenario.json`](fixtures/wedding_dress_scenario.json). Builds on Jagger's [`market_benchmarks.py`](negotiator/market_benchmarks.py).
+
 ---
 
 ## Architecture — one spec, three buyer-side beats + the other end of the line
