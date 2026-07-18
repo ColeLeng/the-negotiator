@@ -127,8 +127,11 @@ pip install -r requirements.txt
 cp .env.example .env               # fill keys when wiring the real modules
 
 python run_demo.py                 # end-to-end MOCK — watch the price move (no keys needed)
-pytest -q                          # value-model + negotiation checks
-uvicorn app.main:app --reload      # API for the demo UI  →  GET /demo
+pytest -q                          # value-model + negotiation + caller + guard checks
+uvicorn app.main:app --reload      # API for the demo UI  →  GET /demo · GET /demo/stream
+
+# Demo UI (separate terminal)
+cd ui && npm install && npm run dev   # → http://localhost:3000
 ```
 
 `run_demo.py` runs intake → search → parallel negotiations → ranked recommendation entirely on mocks, printing a genuinely moving price per session. Start any module by stubbing its output to the [`contracts.py`](negotiator/contracts.py) shape — downstream owners integrate against you before your logic is done.

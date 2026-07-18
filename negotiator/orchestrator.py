@@ -46,7 +46,11 @@ def run(
 
     for i, opt in enumerate(options):
         # BATNA = utility of the next-best listed option (a real fallback the buyer holds).
-        batna = buyer_value.utility(options[i + 1].listed_price, spec) if i + 1 < len(options) else 0.0
+        if i + 1 < len(options):
+            nxt = options[i + 1]
+            batna = buyer_value.utility(nxt.listed_price, spec, offer_attrs=nxt.matched_attributes)
+        else:
+            batna = 0.0
         session = NegotiationSession(
             session_id=f"neg_{opt.option_id}",
             option_id=opt.option_id,
