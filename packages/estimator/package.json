@@ -1,0 +1,13 @@
+{
+  "name": "@negotiator/estimator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@negotiator/shared": "*"
+  }
+}

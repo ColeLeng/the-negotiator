@@ -1,0 +1,44 @@
+{
+  "jobId": "job_demo_0001",
+  "vertical": "wedding-dress",
+  "createdAt": "2026-07-18T00:00:00Z",
+  "source": "hybrid",
+  "confirmedByUser": true,
+  "buyer": {
+    "name": "Demo Buyer",
+    "location": "Boston, MA",
+    "disclosureName": "an AI assistant calling on behalf of a customer"
+  },
+  "budget": {
+    "currency": "USD",
+    "target": 900,
+    "walkAway": 1200
+  },
+  "timeline": {
+    "neededBy": "2026-10-01",
+    "flexible": false
+  },
+  "spec": {
+    "silhouette": "A-line",
+    "color": "ivory",
+    "size": "US 8",
+    "fabric": "satin",
+    "sleeve": "long sleeve",
+    "neckline": "V-neck",
+    "customization": "custom measurements"
+  },
+  "alternatives": [
+    { "color": "white" },
+    { "silhouette": "fit-and-flare" },
+    { "sleeve": "cap" }
+  ],
+  "constraints": {
+    "mustHave": ["long sleeve", "custom measurements", "ships by 2026-09-15"],
+    "niceToHave": ["detachable train", "pockets"],
+    "dealBreaker": ["strapless", "final sale with no exchange"]
+  },
+  "negotiation": {
+    "levers": ["competing_quote", "cash_or_prepay", "bundle_veil_or_alterations", "off_season_timing"],
+    "redFlags": { "belowMarketPct": 30 }
+  }
+}

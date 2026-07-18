@@ -1,0 +1,21 @@
+{
+  "name": "the-negotiator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Voice agents that call, compare, and haggle — Estimator, Caller, Closer. Hack-Nation x ElevenLabs Challenge 01.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/shared",
+    "packages/estimator",
+    "packages/caller",
+    "packages/closer"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --build --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
+  }
+}

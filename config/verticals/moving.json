@@ -1,0 +1,48 @@
+{
+  "vertical": "moving",
+  "displayName": "Local & Long-Distance Moving",
+  "market": "B2C",
+  "description": "The best-documented phone-priced market: a 45-mile move quotes across a 5.6x spread ($1,158-$6,506). Included as the SECOND vertical to prove the system is config, not code — no agent changes vs. wedding-dress.json.",
+  "specFields": [
+    { "key": "originZip", "type": "string", "prompt": "What ZIP are you moving from?" },
+    { "key": "destinationZip", "type": "string", "prompt": "What ZIP are you moving to?" },
+    { "key": "moveDate", "type": "string", "prompt": "What's your move date?" },
+    { "key": "homeSize", "type": "enum", "values": ["studio", "1-bed", "2-bed", "3-bed", "4-bed+"], "prompt": "How big is the home?" },
+    { "key": "largeItems", "type": "string", "prompt": "Any large or special items (piano, safe, treadmill, appliances)?" },
+    { "key": "stairsOrElevator", "type": "string", "prompt": "Stairs, elevator, or long carry at either end?" },
+    { "key": "packingNeeded", "type": "string", "required": false, "prompt": "Do you need packing services or supplies?" }
+  ],
+  "priceBenchmark": {
+    "source": "FMCSA + moveBuddha rate data",
+    "currency": "USD",
+    "median": 2400,
+    "p25": 1400,
+    "p75": 4200,
+    "note": "Replace with a live benchmark feed for production."
+  },
+  "redFlags": [
+    { "rule": "below_market", "thresholdPct": 30, "message": "30%+ below competition is the classic lowball-then-upcharge signal — treat as a warning, not the best deal." },
+    { "rule": "sight_unseen_estimate", "message": "Estimate given without seeing the shipment is 40% more likely to end above the quote (FMCSA). Push for a binding or not-to-exceed quote." },
+    { "rule": "large_deposit", "message": "Large upfront deposit is a hostage-load risk — flag it." }
+  ],
+  "negotiationLevers": [
+    "competing_quote",
+    "binding_not_to_exceed",
+    "off_peak_date",
+    "flexible_window",
+    "self_pack",
+    "waive_travel_or_fuel_fee",
+    "price_match"
+  ],
+  "callListSource": {
+    "provider": "google_places",
+    "query": "moving company OR movers",
+    "filters": { "minRating": 4.0, "radiusKm": 30 }
+  },
+  "counterpartyStyles": [
+    { "id": "tough_negotiator", "description": "Firm on rate, wants a deposit to hold the date." },
+    { "id": "stonewaller_no_prices_by_phone", "description": "'We need an in-home survey first' — extract a per-hour rate and crew size." },
+    { "id": "hard_sell_upseller", "description": "Adds fuel surcharge, stairs fee, long-carry fee, packing materials. Agent itemizes and challenges each." }
+  ],
+  "disclosure": "Hi, this is an AI assistant calling on behalf of a customer planning a move. Just so you know, I'm an AI — I'm gathering a few quotes. Do you have a minute for some quick details?"
+}

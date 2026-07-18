@@ -1,0 +1,49 @@
+{
+  "vertical": "wedding-dress",
+  "displayName": "Wedding Dress (DTC)",
+  "market": "DTC",
+  "description": "Customized, one-time, high-emotion purchase. Opaque prices, plentiful alternatives, zero buyer leverage and zero time. The buyer describes what she wants once; the agents shop and haggle.",
+  "specFields": [
+    { "key": "silhouette", "type": "enum", "values": ["A-line", "ball-gown", "mermaid", "sheath", "fit-and-flare", "trumpet"], "prompt": "What silhouette are you looking for?" },
+    { "key": "color", "type": "enum", "values": ["white", "ivory", "champagne", "blush", "off-white"], "prompt": "What color?" },
+    { "key": "size", "type": "string", "prompt": "What dress size (US)?" },
+    { "key": "fabric", "type": "string", "required": false, "prompt": "Any fabric preference (satin, lace, tulle, crepe)?" },
+    { "key": "sleeve", "type": "string", "required": false, "prompt": "Sleeve style (strapless, long sleeve, cap, off-shoulder)?" },
+    { "key": "neckline", "type": "string", "required": false, "prompt": "Neckline (sweetheart, V-neck, halter, square)?" },
+    { "key": "customization", "type": "string", "required": false, "prompt": "Any customization (custom measurements, added sleeves, color change)?" }
+  ],
+  "priceBenchmark": {
+    "source": "aggregated bridal marketplace + boutique listings",
+    "currency": "USD",
+    "median": 1100,
+    "p25": 650,
+    "p75": 1900,
+    "note": "Ground truth for red-flag detection. Replace with a live benchmark feed for production."
+  },
+  "redFlags": [
+    { "rule": "below_market", "thresholdPct": 30, "message": "Quote is 30%+ below the median — verify authenticity, fabric quality, real photos, sizing accuracy, and return policy before trusting. Common in dropship knock-offs." },
+    { "rule": "no_returns", "message": "No returns / final sale on a made-to-order gown magnifies sizing risk — flag it." },
+    { "rule": "vague_lead_time", "message": "Lead time unstated or 'it depends' — pin down a firm ship-by date against the wedding date." }
+  ],
+  "negotiationLevers": [
+    "competing_quote",
+    "bundle_veil_or_alterations",
+    "cash_or_prepay",
+    "off_season_timing",
+    "floor_sample_or_sample_sale",
+    "price_match",
+    "free_or_discounted_shipping"
+  ],
+  "callListSource": {
+    "provider": "google_places",
+    "query": "bridal boutique OR wedding dress shop",
+    "filters": { "minRating": 4.0, "radiusKm": 40 },
+    "note": "Also supports direct-to-consumer online sellers via their listed customer-service lines."
+  },
+  "counterpartyStyles": [
+    { "id": "tough_negotiator", "description": "Holds firm on price, pushes deposits, tests whether the buyer is serious." },
+    { "id": "stonewaller_no_prices_by_phone", "description": "'We only give pricing after an in-store appointment' — must extract a range or a firm callback." },
+    { "id": "hard_sell_upseller", "description": "Bundles alterations, veils, rush fees; inflates the total. Agent must itemize and strip non-essentials." }
+  ],
+  "disclosure": "Hi, this is an AI assistant calling on behalf of a customer who's shopping for a wedding dress. Happy to say up front that I'm an AI — I'm just gathering some pricing and availability. Is now an okay time for a couple of quick questions?"
+}
