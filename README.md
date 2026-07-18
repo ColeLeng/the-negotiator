@@ -62,7 +62,7 @@ The **contracts in [`negotiator/contracts.py`](negotiator/contracts.py)** are th
 ### 1 · Estimator — *intake by interview or documents* (Jagger)
 Turns messy human input into a clean `ProductSpec` with ZOPA parameters. Voice interview (ElevenLabs) **and** a document path, both producing the same schema, confirmed before any call. → [`negotiator/estimator.py`](negotiator/estimator.py)
 
-### 2 · Caller — *parallel quote gathering* (Jagger)
+### 2 · Caller — *parallel quote gathering* (Cole)
 Fans out over the web (Exa/Tavily/Serper) + business listings (Google Places/Yelp) for **real** options, scores each with the buyer value function, returns a ranked `RankedOptions`. → [`negotiator/caller.py`](negotiator/caller.py)
 
 ### 3 · Buyer Agent + Orchestrator — *negotiation & reporting* (Suman)
@@ -133,18 +133,18 @@ uvicorn app.main:app --reload      # API for the demo UI  →  GET /demo
 
 `run_demo.py` runs intake → search → parallel negotiations → ranked recommendation entirely on mocks, printing a genuinely moving price per session. Start any module by stubbing its output to the [`contracts.py`](negotiator/contracts.py) shape — downstream owners integrate against you before your logic is done.
 
-## Team & roles  *(from Suman's spec §4.4)*
+## Team & roles
 
 | Area | Owner |
 |---|---|
-| Data-contract freeze (`negotiator/contracts.py`) | **Suman** + note-taker |
+| Data-contract freeze (`negotiator/contracts.py`) | **Suman** + Cole |
 | Estimator (`estimator.py`) | **Jagger** |
-| Caller (`caller.py`) | **Jagger** |
-| Buyer value / ZOPA model (`buyer_value.py`) | **Cole + Kazi** |
+| Caller (`caller.py`) | **Cole** |
+| Buyer value / ZOPA model (`buyer_value.py`) | **Cole** |
 | Buyer Agent + Orchestrator + loop + channels + blackboard | **Suman** |
 | Seller Agent + seller value model | **Ella** |
-| Honesty + anti-injection guard (`guard.py`) | **note-taker** |
-| Demo UI (`ui/`) | **note-taker** |
+| Honesty + anti-injection guard (`guard.py`) | **Cole** |
+| Demo UI (`ui/`) | **Cole** |
 
 See the [Linear project](https://linear.app/citable/project/the-negotiator-hack-nation-elevenlabs-5adf25d81103) for the live task board.
 
