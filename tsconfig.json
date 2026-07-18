@@ -4,6 +4,7 @@
     { "path": "packages/shared" },
     { "path": "packages/estimator" },
     { "path": "packages/caller" },
-    { "path": "packages/closer" }
+    { "path": "packages/closer" },
+    { "path": "packages/seller-agent" }
   ]
 }

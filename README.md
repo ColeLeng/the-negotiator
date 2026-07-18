@@ -22,7 +22,7 @@ Vertical-specific parameters — taxonomy, price benchmarks, red-flag rules, neg
 
 ---
 
-## Architecture — one job spec, three beats
+## Architecture — one job spec, three buyer-side beats + the other end of the line
 
 ```mermaid
 flowchart LR
@@ -38,9 +38,7 @@ flowchart LR
       direction TB
       C1[Build call list\nGoogle Places / Yelp]
       C2[Parallel outbound calls\nBatch / Twilio / SIP]
-      C3[Counterparty agents\n3+ negotiation styles]
       C1 --> C2 --> Q[(Itemized quotes\ncomparable form)]
-      C3 --> Q
     end
     Q --> CL
     subgraph CL[3 · The Closer]
@@ -50,9 +48,15 @@ flowchart LR
       CL3[Ranked report + transcript evidence]
     end
     CL --> R([Recommended deal\nplain-language report])
+    subgraph S[The other end of the line]
+      direction TB
+      S1[Seller-side agent\ntough / stonewaller / upseller]
+    end
+    C2 <-->|agent-to-agent · UCP| S1
+    CL1 <-->|negotiate · UCP| S1
 ```
 
-The **[Structured Job Spec](schemas/job-spec.schema.json)** is the contract that ties the three modules together: built once (by voice **and** at least one document type), **confirmed by the user**, then **reused verbatim** on every call so every quote is for the exact same job.
+The **[Structured Job Spec](schemas/job-spec.schema.json)** is the contract that ties the buyer-side modules together: built once (by voice **and** at least one document type), **confirmed by the user**, then **reused verbatim** on every call so every quote is for the exact same job. The buyer agents negotiate against a **seller-side counterparty agent** — ideally over **UCP (Universal Commerce Protocol)** — which is what makes a price actually move.
 
 ### 1 · The Estimator — *intake by interview or documents*
 An intake agent builds a complete, structured job spec — the thing that makes a later quote *binding rather than bait*. Two paths, both producing the **same** spec:
@@ -68,6 +72,9 @@ Phones the market and extracts an **itemized, comparable quote** from each call.
 
 ### 3 · The Closer — *negotiation & reporting*
 With quotes in hand, the agent **negotiates**: leverages one bid against another ("I have a binding quote for \$850 — can you beat it?"), pushes on fees, applies **red-flag rules** (any quote 30%+ below market is a *warning*, not a win), and produces a **ranked report** the buyer can trust — recommended deal, full transcripts and recordings, itemized fee breakdowns, and a plain-language explanation of *why*. → [`packages/closer`](packages/closer/)
+
+### The other end of the line — *the Seller-side agent*
+The counterparty, built as agents rather than a script. Vendor/seller agents take the Caller's calls and hold the line against the Closer — the **tough negotiator**, the **stonewaller** who won't price by phone, the **hard-sell upseller**. Running the buyer agents *against* real seller agents — ideally negotiating over **UCP (Universal Commerce Protocol)** — is what makes a price actually move during a call, instead of a scripted screenplay. Voice (ElevenLabs) is the required top layer; the agent-to-agent negotiation logic underneath is the reusable, Citable-relevant bet. → [`packages/seller-agent`](packages/seller-agent/)
 
 ---
 
@@ -109,7 +116,8 @@ the-negotiator/
 │   ├── shared/                  # typed JobSpec, Quote, NegotiationOutcome models
 │   ├── estimator/               # module 1 — intake (voice + documents) → job spec
 │   ├── caller/                  # module 2 — parallel quote gathering
-│   └── closer/                  # module 3 — negotiation + ranked report
+│   ├── closer/                  # module 3 — negotiation + ranked report
+│   └── seller-agent/            # the other end of the line — counterparty vendor agents
 └── evals/                       # golden calls + eval sets (fee extraction, red-flag detection)
 ```
 
@@ -128,12 +136,15 @@ Each module has its own README with what it owns and how to run it. Start with t
 
 | Area | Owner |
 |---|---|
-| Market research — UCP/protocol negotiation, market sizing (\$ & #), one-time/custom markets | **Jagger** |
-| The Caller — buying scenarios, negotiation types, parallel quote-gathering fan-out | **Cole** |
-| The Estimator — voice intake + document parsing → job spec | *up for grabs* |
-| The Closer — negotiation loop + ranked reporting | *up for grabs* |
+| Infra — ElevenLabs + telephony + market-discovery keys | **Cole** |
+| The Estimator — voice + document intake → job spec | **Jagger** |
+| The Caller — call list + parallel quote-gathering fan-out | **Cole** |
+| The Closer — negotiation loop + ranked reporting | **Suman** |
+| Seller-side agent — counterparty vendor agents, agent-to-agent via UCP | **Ella** |
+| Market research — UCP/ZOPA, market sizing (\$ & #), one-time/custom markets | **Jagger** |
+| Demo + eval harness — golden calls, 3 styles, final report | *up for grabs* |
 
-See the [Linear project](#) for the live task board.
+See the [Linear project](https://linear.app/citable/project/the-negotiator-hack-nation-elevenlabs-5adf25d81103) for the live task board.
 
 ## What "done" looks like
 
