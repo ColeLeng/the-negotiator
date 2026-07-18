@@ -63,7 +63,7 @@ The **contracts in [`negotiator/contracts.py`](negotiator/contracts.py)** are th
 Turns messy human input into a clean `ProductSpec` with ZOPA parameters. Voice interview (ElevenLabs) **and** a document path, both producing the same schema, confirmed before any call. → [`negotiator/estimator.py`](negotiator/estimator.py)
 
 ### 2 · Caller — *parallel quote gathering* (Cole)
-Fans out over the web (Exa/Tavily/Serper) + business listings (Google Places/Yelp) for **real** options, scores each with the buyer value function, returns a ranked `RankedOptions`. → [`negotiator/caller.py`](negotiator/caller.py)
+Fans out over the web (Exa/Tavily/Serper) + business listings (Google Places/Yelp) for **real** options, scores each with the buyer value function, stamps ≥3 negotiation styles + fee templates, returns a ranked `RankedOptions` for agent-to-agent fan-out. → [`negotiator/caller.py`](negotiator/caller.py) · [`docs/caller-a2a-requirements.md`](docs/caller-a2a-requirements.md) · Ella’s seller contract: [`docs/ella-seller-a2a-requirements.md`](docs/ella-seller-a2a-requirements.md)
 
 ### 3 · Buyer Agent + Orchestrator — *negotiation & reporting* (Suman)
 The Orchestrator spawns one **Buyer Agent ⇄ Seller Agent** session per top-N option, each Buyer Agent maximizing utility with **honest** leverage only (a competing quote must exist on the shared **blackboard**), applying red-flag/BATNA logic, then ranks the closed deals with transcript citations. → [`negotiator/orchestrator.py`](negotiator/orchestrator.py) · [`negotiator/agents/buyer_agent.py`](negotiator/agents/buyer_agent.py) · [`negotiator/comms/`](negotiator/comms/)

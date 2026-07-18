@@ -39,3 +39,25 @@ def next_seller_min(state: SellerState, round_idx: int, max_rounds: int) -> floa
     start = max(state.list_price, floor)
     frac = (round_idx / max(1, max_rounds)) ** 2
     return max(floor, start - (start - floor) * min(1.0, frac))
+
+
+def addon_total(state: SellerState) -> float:
+    return sum(a.price for a in state.catalog_addons)
+
+
+def bundled_ask(state: SellerState) -> float:
+    """Upseller open: list + catalog add-ons."""
+    return round(state.list_price + addon_total(state), 2)
+
+
+def upsell_ask(state: SellerState, round_idx: int, max_rounds: int) -> float:
+    """Concede by stripping add-ons first, then easing the gown price toward dynamic_floor."""
+    floor = dynamic_floor(state)
+    addons = list(state.catalog_addons)
+    # Strip one add-on per early round (most expensive first).
+    keep = max(0, len(addons) - round_idx)
+    sorted_addons = sorted(addons, key=lambda a: a.price, reverse=True)
+    remaining_addon = sum(a.price for a in sorted_addons[:keep])
+    # After add-ons are gone, ease base toward floor (same curve as next_seller_min).
+    base = next_seller_min(state, max(0, round_idx - len(addons)), max_rounds)
+    return max(floor, round(base + remaining_addon, 2))
