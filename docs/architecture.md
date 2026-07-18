@@ -1,5 +1,7 @@
 # Architecture
 
+> **This is the conceptual overview.** The canonical, build-ready technical design — frozen data contracts (`ProductSpec` / `RankedOptions` / `NegotiationSession`), per-owner module I/O, buyer & seller value/ZOPA models, orchestrator + shared blackboard, channels (mock/voice/UCP), honesty guard, and the hour-by-hour parallel build plan — lives in [`technical-architecture.md`](technical-architecture.md) (authored by Suman). Where the two differ, the technical spec wins; notably the **Closer** there is decomposed into the **Buyer Agent + Orchestrator + negotiation loop**.
+
 The Negotiator is three buyer-side agents chained by a single shared contract — the **Structured Job Spec** — negotiating against a **seller-side counterparty agent** on the other end of the line. Build the spec once, confirm it with the user, and reuse it *verbatim* on every call so every quote is for the exact same job. The buyer and seller agents ideally negotiate **agent-to-agent over UCP (Universal Commerce Protocol)**; voice (ElevenLabs) is the required layer on top, not the point.
 
 ```

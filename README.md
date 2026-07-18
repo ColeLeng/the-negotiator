@@ -24,6 +24,8 @@ Vertical-specific parameters — taxonomy, price benchmarks, red-flag rules, neg
 
 ## Architecture — one job spec, three buyer-side beats + the other end of the line
 
+> **📐 Canonical build spec:** [`docs/technical-architecture.md`](docs/technical-architecture.md) (Suman) — frozen data contracts, per-owner module I/O, buyer/seller value + ZOPA models, orchestrator + shared blackboard, pluggable channels (mock/voice/UCP), honesty guard, and the hour-by-hour parallel build plan. The map below is the conceptual overview; in the technical spec the **Closer** is realized as the **Buyer Agent + Orchestrator + negotiation loop**, coordinating through a shared **blackboard** for live, honest BATNA leverage.
+
 ```mermaid
 flowchart LR
     U([Buyer]) -->|voice interview / documents| E
