@@ -30,6 +30,7 @@ Latest split — this drives the videos below.
 | 3 | **Trace screen** | **Jagger** | A live view of what the agent is doing — shown as a right-side screen |
 | 4 | **Negotiator engine** | **Suman** | The part that actually runs the back-and-forth (the orchestrator) |
 | 5 | **Estimator (intake)** | **Cole** | Turns the buyer’s call into the clean list of what they want |
+| 6 | **Seller data** | **Ella** | Simulated seller info (prices, limits, styles) so the calls have real numbers to work with |
 
 **Two real voice legs now** (buyer↔agent and agent↔seller) — that is a big upgrade from mocks and should be front and center.
 
@@ -172,7 +173,7 @@ The **trace screen is the Tech hero** — the real seller call plays on the left
 | Cole | Pitch + the first call: turning what you say into a clear plan (intake) |
 | Suman | The engine that runs the negotiation |
 | Jagger | The live screen that shows how the agent works + why this market |
-| Ella | The seller side — how shops push back and give discounts |
+| Ella | The seller data — realistic shop prices and how they haggle |
 
 ---
 
@@ -209,6 +210,7 @@ Scope now:
 • Jagger: live TRACE screen = the right-side view of how the agent works
 • Suman: the negotiator engine
 • Cole: the estimator (turns the buyer call into a clear plan)
+• Ella: simulated seller data (prices, limits, haggling styles) so the calls use real numbers
 • Cole is providing the ElevenLabs credits — will load + share before shoot day
 
 Three videos, each MAX 60 seconds (MP4/MOV): Demo, Tech, Team.
@@ -234,7 +236,7 @@ Full plan: docs/final-deliverable-proposal.md
 @Cole — estimator + ElevenLabs credits + Demo/summary
 @Suman — negotiator engine (smooth on the seller call)
 @Jagger — trace screen synced to the seller call + one pain number from the deck
-@Ella — seller-side numbers match the report-back
+@Ella — simulated seller data (prices/limits/styles) so calls + report-back use real numbers
 ```
 
 ---
