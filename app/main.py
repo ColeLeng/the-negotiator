@@ -8,6 +8,8 @@ Trace routes (owner: Jagger) feed the demo's left-screen live agent-behavior pan
     #       GET /demo/stream  (SSE for the live ticker + transcript)
     #       GET /trace/view   (left-screen live agent-behavior panel)
     #       GET /trace/stream (SSE feed backing that panel)  ·  GET /trace (fallback)
+    #       GET /demo/three-negotiations/view    (3-lane rehearsal panel; demo/three_negotiations/)
+    #       GET /demo/three-negotiations/stream  (SSE feed backing that panel)
 """
 from __future__ import annotations
 
@@ -195,11 +197,9 @@ def trace() -> dict:
     return {"events": [e.to_dict() for e in tracer.events()], **payload}
 
 
-@app.get("/trace/stream")
-async def trace_stream() -> StreamingResponse:
-    """SSE feed for the demo's left-screen live agent-behavior panel: one `trace`
-    event per logged TraceEvent, emitted as the orchestrator produces them (not
-    batched at the end), then `done`."""
+def _sse_trace_stream(run_fn) -> StreamingResponse:
+    """Shared SSE plumbing: run `run_fn(tracer)` in a worker thread, forward every
+    TraceEvent to the client as it's produced (not batched at the end), then `done`."""
 
     async def events():
         loop = asyncio.get_event_loop()
@@ -209,7 +209,7 @@ async def trace_stream() -> StreamingResponse:
 
         async def run() -> None:
             try:
-                await asyncio.to_thread(_run_demo_traced, tracer)
+                await asyncio.to_thread(run_fn, tracer)
             finally:
                 loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
 
@@ -236,9 +236,35 @@ async def trace_stream() -> StreamingResponse:
     )
 
 
+@app.get("/trace/stream")
+def trace_stream() -> StreamingResponse:
+    """SSE feed for the demo's left-screen live agent-behavior panel: one `trace`
+    event per logged TraceEvent, emitted as the orchestrator produces them."""
+    return _sse_trace_stream(_run_demo_traced)
+
+
 @app.get("/trace/view")
 def trace_view() -> FileResponse:
     """The left-screen panel itself -- a self-contained page, no build step. Open
     this in one window and the transcript UI (ui/) in another for the dual-screen
     demo recording."""
     return FileResponse(_TRACE_VIEW_PATH)
+
+
+_THREE_NEGOTIATIONS_DIR = Path(__file__).resolve().parent.parent / "demo" / "three_negotiations"
+
+
+@app.get("/demo/three-negotiations/stream")
+def three_negotiations_stream() -> StreamingResponse:
+    """SSE feed for the "three negotiations" rehearsal (see demo/three_negotiations/
+    README.md): all three scripted-seller calls, run against the real BuyerAgent/
+    Blackboard/guard, one `trace` event at a time, each tagged `detail.style`."""
+    from demo.three_negotiations.runner import run_all
+
+    return _sse_trace_stream(lambda tracer: run_all(tracer=tracer))
+
+
+@app.get("/demo/three-negotiations/view")
+def three_negotiations_view() -> FileResponse:
+    """The three-lane panel for that rehearsal -- self-contained, no build step."""
+    return FileResponse(_THREE_NEGOTIATIONS_DIR / "view.html")
