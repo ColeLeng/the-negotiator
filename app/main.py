@@ -230,7 +230,7 @@ async def inquiry_stream(keep: int = 5) -> StreamingResponse:
 
         def run() -> None:
             spec = _scenario2_spec()
-            pool = gather_quotes(spec, load_market(), tracer=tracer)
+            pool = gather_quotes(spec, load_market(), tracer=tracer, interleave=True)
             shortlist(pool, spec, keep=keep, tracer=tracer)
 
         async def runner() -> None:
@@ -246,7 +246,7 @@ async def inquiry_stream(keep: int = 5) -> StreamingResponse:
                 if event is None:
                     break
                 yield _sse("trace", event.to_dict())
-                await asyncio.sleep(0.16)
+                await asyncio.sleep(0.11)
         finally:
             await task
         yield _sse("done", {})
