@@ -1,0 +1,112 @@
+{
+  "scenario_id": "wd_made_to_order_vs_sample_and_resale",
+  "description": "Narrowed wedding-dress demo: one bride, one designer look, three channels that genuinely haggle (resale / sample sale / made-to-order). The cross-channel spread IS the honest BATNA; the made-to-order seller conceding into the ZOPA is the 'real moving price' money shot. Prices grounded in config/verticals/wedding-dress.json and docs/wedding-dress-research.md.",
+  "persona": {
+    "name": "Bride, US 8",
+    "size": "US 8",
+    "wedding_in_days": 120,
+    "note": "~4 months out: too tight for 6-9mo custom; favors in-stock resale / sample / made-to-order with an 8-10 week alterations buffer.",
+    "budget_reasoning": "target ~ off-the-rack low tier ($1,200); reservation ~ made-to-order median floor; walkaway ~ regional high-cost median."
+  },
+  "spec": {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "category": "WeddingDress",
+    "spec_id": "spec_wd_demo",
+    "attributes": [
+      { "name": "size", "value": "US 8", "constraint": "hard", "weight": null, "substitutions": [] },
+      { "name": "ship_by_days", "value": "70", "constraint": "hard", "weight": null, "substitutions": [],
+        "_note": "wedding in 120d minus ~8-10wk alterations buffer => gown must ship within ~70 days" },
+      { "name": "silhouette", "value": "A-line", "constraint": "soft", "weight": 0.30, "substitutions": ["fit-and-flare"] },
+      { "name": "designer", "value": "Maggie Sottero", "constraint": "soft", "weight": 0.25, "substitutions": ["Pronovias", "comparable designer"] },
+      { "name": "color", "value": "ivory", "constraint": "soft", "weight": 0.20, "substitutions": ["champagne", "off-white"] },
+      { "name": "condition", "value": "new-or-excellent", "constraint": "soft", "weight": 0.15, "substitutions": ["sample", "gently-preowned"] },
+      { "name": "returnable", "value": "yes", "constraint": "soft", "weight": 0.10, "substitutions": ["exchange", "final-sale-with-exact-measurements"] }
+    ],
+    "negotiation": {
+      "target_price": 1200.0,
+      "reservation_price": 1900.0,
+      "currency": "USD",
+      "deadline_days": 120,
+      "must_have_summary": "US 8, ships within ~70 days (8-10wk alterations buffer before a wedding 120 days out)"
+    }
+  },
+  "ranked_options": {
+    "spec_id": "spec_wd_demo",
+    "options": [
+      {
+        "option_id": "opt_resale",
+        "vendor": "Stillwhite seller (preowned Maggie Sottero)",
+        "source_url": "https://www.stillwhite.com/",
+        "listed_price": 850.0,
+        "currency": "USD",
+        "matched_attributes": { "size": "US 8", "designer": "Maggie Sottero", "color": "ivory", "condition": "gently-preowned" },
+        "unmet_soft": ["returnable"],
+        "match_score": 1.0,
+        "channel": { "type": "ucp", "endpoint": "stillwhite:listing" }
+      },
+      {
+        "option_id": "opt_sample",
+        "vendor": "Boutique floor sample (sample sale)",
+        "source_url": "https://example-bridal.test/sample-sale",
+        "listed_price": 1300.0,
+        "currency": "USD",
+        "matched_attributes": { "size": "US 8", "silhouette": "A-line", "color": "ivory", "condition": "sample" },
+        "unmet_soft": ["designer"],
+        "match_score": 0.857,
+        "channel": { "type": "voice", "endpoint": "+1-555-0100" }
+      },
+      {
+        "option_id": "opt_mto",
+        "vendor": "Bridal boutique (made-to-order, new)",
+        "source_url": "https://example-bridal.test/mto",
+        "listed_price": 2100.0,
+        "currency": "USD",
+        "matched_attributes": { "size": "US 8", "silhouette": "A-line", "designer": "Maggie Sottero", "color": "ivory", "condition": "new-or-excellent", "returnable": "final-sale-with-exact-measurements" },
+        "unmet_soft": [],
+        "match_score": 0.0,
+        "channel": { "type": "voice", "endpoint": "+1-555-0199" }
+      }
+    ],
+    "generated_at": null
+  },
+  "sellers": {
+    "opt_resale": {
+      "vendor": "Stillwhite seller (preowned Maggie Sottero)",
+      "cost_floor": 500.0,
+      "list_price": 850.0,
+      "min_margin": 0.0,
+      "inventory": { "sku_units": 1, "stock_age_days": 90 },
+      "capacity": { "lead_time_days": 7, "at_capacity": false },
+      "catalog_addons": [],
+      "_note": "Individual seller, aging listing, just wants to recoup: lowest floor, concedes fastest."
+    },
+    "opt_sample": {
+      "vendor": "Boutique floor sample (sample sale)",
+      "cost_floor": 800.0,
+      "list_price": 1300.0,
+      "min_margin": 100.0,
+      "inventory": { "sku_units": 1, "stock_age_days": 240 },
+      "capacity": { "lead_time_days": 3, "at_capacity": false },
+      "catalog_addons": [{ "name": "in-house alterations", "price": 500.0 }],
+      "_note": "Clearing an old display sample: real inventory pressure lowers the floor; likely upsells alterations."
+    },
+    "opt_mto": {
+      "vendor": "Bridal boutique (made-to-order, new)",
+      "cost_floor": 1500.0,
+      "list_price": 2100.0,
+      "min_margin": 150.0,
+      "inventory": { "sku_units": 20, "stock_age_days": 15 },
+      "capacity": { "lead_time_days": 150, "at_capacity": true },
+      "catalog_addons": [{ "name": "veil", "price": 180.0 }, { "name": "rush production", "price": 300.0 }],
+      "_note": "Fresh stock, holds firmer; 150d production BUSTS the 70d ship-by hard constraint unless rush is added -> lead-time-vs-date becomes the live lever."
+    }
+  },
+  "expected_demo_beats": [
+    "Estimation: bride's paragraph -> ProductSpec above; deadline (120d) minus 8-10wk buffer sets ship_by hard constraint (~70d); target/reservation/walkaway pulled from the config channel bands.",
+    "Caller: 3 comparable gowns across resale / sample / made-to-order; 2nd-best seeds the 1st's BATNA; the resale + sample rows are the honest leverage.",
+    "Negotiation: made-to-order seller opens at $2,100 (above reservation -> red flag: alterations_and_addon_stack if alterations baked in). Buyer cites the real $850 resale + $1,300 sample BATNA; seller's dynamic_floor (~$1,650) is below reservation so a ZOPA exists; price moves down toward ~$1,800.",
+    "Lead-time guard: made-to-order 150d production fails the 70d ship-by -> agent must extract rush terms or walk to the sample/resale row (which ship in days).",
+    "Outcome: ranked recommendation with the resale gown as the value winner and the negotiated made-to-order as the 'new gown, in budget' alternative, each with transcript evidence."
+  ]
+}
