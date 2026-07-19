@@ -257,6 +257,24 @@ The buyer’s confirmed details flow **into** the seller call. Cole’s seller b
 
 Either way the numbers line up, because the single frozen scenario is the source of truth. Zoom, if used at all, is just a green room for cueing — never the footage.
 
+### What ElevenLabs does vs. what we build (don’t overclaim)
+
+Be precise so the demo stays honest:
+
+- **ElevenLabs handles one voice conversation at a time** — the listening, talking, and (with Twilio) placing an outbound call, plus running tools mid-call.
+- **It does NOT chain the calls by itself.** It doesn’t finish the buyer call, decide to phone sellers, carry the details over, and report back on its own.
+- **Our backend (Suman’s negotiator) is the glue:** it saves the buyer’s confirmed details, decides to call the seller, injects those details into the outbound call, collects the result, and produces the report.
+
+So “ElevenLabs takes care of it” is only half true: it does each **voice leg**; **our code connects the legs.**
+
+### How this maps to the real world
+
+- **The real product is asynchronous, not one live chain.** The buyer says what they want once and **hangs up**. The agent calls businesses over the next minutes/hours, then **calls the buyer back**. That “calls you back” model *is* the realistic one — and it’s exactly our pitch.
+- **Outbound AI calling to real businesses is a real, existing thing** (Twilio + ElevenLabs). The hard parts in the wild are gatekeepers, phone trees, hang-ups, “are you a robot?”, and the fact that the seller is a **human with no agent** — which is why our seller is a person answering a phone.
+- **What would be fake:** implying one ElevenLabs “brain” autonomously roams the market. It doesn’t. Our orchestrator drives it one call at a time (or several at once), passing state between them.
+
+**So don’t build a fragile fully-autonomous live chain for a 60-second video.** Use the async model: real intake call → real outbound call to Cole (with the buyer’s details) → real report-back. Record each leg, keep one scenario, edit into “talk once → it calls → it calls you back.” Simpler *and* more true to life.
+
 ### Where the audio actually comes from
 
 ElevenLabs agents **record the call and produce a transcript automatically**. That recording is your cleanest audio — download it and use it as the master track. Everything else (screen, call-UI overlay) is layered on top in editing.
