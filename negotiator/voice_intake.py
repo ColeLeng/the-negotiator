@@ -63,15 +63,21 @@ def build_agent_config(vertical: str, with_tool: bool = True) -> dict:
         f"2. NEVER ask about something the buyer already told you. Track what you have "
         f"and only ask for what's still missing. Do not repeat a question you've asked.\n"
         f"3. Must-haves come first: {', '.join(hard_keys) or 'the essentials'} and the "
-        f"budget. Style details are nice-to-have — ask a couple, but if the buyer is "
-        f"vague or says 'no preference', accept that and MOVE ON. Don't grill them.\n"
+        f"budget. Everything else (fabric, sleeve, neckline, customization, etc.) is "
+        f"OPTIONAL: ask each optional detail AT MOST ONCE. If the buyer doesn't answer "
+        f"it, is vague, deflects, or says things like 'no preference' / 'good enough' / "
+        f"\"that's all\", treat it as 'none' and MOVE ON — do NOT ask it again. Never let "
+        f"one optional field (e.g. customization) stall the conversation.\n"
         f"4. If the buyer corrects something (e.g. changes the color), acknowledge the "
         f"change once and update it — don't re-ask the earlier question.\n"
         f"5. If the buyer is briefly silent, wait patiently; prompt gently at most once, "
         f"then keep going. Never nag.\n"
-        f"6. When you have the must-haves, budget, and priorities, read the brief back "
-        f"ONCE, concisely, and ask the buyer to confirm or correct.\n"
-        f"7. After they confirm, say one short closing line (e.g. \"Great — I'll start "
+        f"6. Don't get stuck collecting optional details. As soon as you have the "
+        f"must-haves, budget, and priorities, proceed to the read-back even if some "
+        f"optional fields are blank.\n"
+        f"7. When ready, read the brief back ONCE, concisely, and ask the buyer to "
+        f"confirm or correct.\n"
+        f"8. After they confirm, say one short closing line (e.g. \"Great — I'll start "
         f"shopping for this.\"). Do NOT say the words 'JSON', field names, code, or "
         f"numbers-as-data aloud. Never invent a value the buyer didn't state.\n"
     )
@@ -289,18 +295,82 @@ def transcript_to_text(conversation: dict) -> str:
 
 def intent_from_conversation(conversation_id: str, vertical: Optional[str] = None) -> dict:
     """Post-call path: fetch a recorded ElevenLabs intake call and return the buyer-intent
-    JSON handoff. If the transcript contains a structured submission JSON (the agent's
-    end-of-call payload), parse it deterministically (schema-tolerant); otherwise fall
-    back to running the transcript text through `estimate()` (sharper with ANTHROPIC_API_KEY)."""
+    JSON handoff. Extraction priority (most to least reliable):
+      1. ElevenLabs' own `data_collection_results` (configured via build_data_collection;
+         LLM-extracted server-side — no tunnel, no local key, handles spoken numbers).
+      2. A structured submission JSON embedded in the transcript (schema-tolerant).
+      3. Running the transcript text through `estimate()` (sharper with ANTHROPIC_API_KEY).
+    """
     conversation = fetch_conversation(conversation_id)
-    text = transcript_to_text(conversation)
 
+    dc = _data_collection_values(conversation)
+    if dc:
+        tool_args = _normalize_submission(dc, vertical=vertical)
+        return to_buyer_intent(handle_tool_call(tool_args, vertical=vertical))
+
+    text = transcript_to_text(conversation)
     submission = _extract_submission_json(text)
     if submission is not None:
         tool_args = _normalize_submission(submission, vertical=vertical)
         return to_buyer_intent(handle_tool_call(tool_args, vertical=vertical))
 
     return to_buyer_intent(estimate(text, vertical=vertical))
+
+
+def _data_collection_values(conversation: dict) -> dict:
+    """Flatten ElevenLabs `analysis.data_collection_results` into {field: value}, keeping
+    only fields the extractor actually filled. Empty/missing → {} so we fall through."""
+    results = ((conversation.get("analysis") or {}).get("data_collection_results")) or {}
+    flat: dict = {}
+    for key, entry in results.items():
+        value = entry.get("value") if isinstance(entry, dict) else entry
+        if value not in (None, "", []):
+            flat[key] = value
+    return flat
+
+
+def build_data_collection(vertical: str) -> dict:
+    """The `platform_settings.data_collection` map: tells ElevenLabs which structured
+    fields to extract from each intake call server-side. Results land in
+    `analysis.data_collection_results` and are read by `intent_from_conversation` — no
+    webhook/tunnel and no local LLM key needed, and spoken numbers ('fifteen hundred',
+    'four months') are handled by ElevenLabs' analysis LLM."""
+    fields = load_vertical_config(vertical).get("specFields", [])
+    soft_keys = [
+        f["key"] for f in fields
+        if f.get("type") != "date" and f.get("constraint", "hard" if f.get("required", True) else "soft") == "soft"
+    ]
+    dc = {
+        f["key"]: {"type": "string", "description": f.get("prompt", f["key"])}
+        for f in fields if f.get("type") != "date"
+    }
+    dc["target_price"] = {"type": "number", "description": "The buyer's target price in USD (what they hope to pay). Digits only, e.g. 1500."}
+    dc["reservation_price"] = {"type": "number", "description": "The buyer's hard maximum / walk-away price in USD. Digits only, e.g. 2200."}
+    dc["deadline_days"] = {"type": "integer", "description": "Number of days until the buyer needs the item. Convert weeks/months to days (1 month = 30 days), e.g. 'four months' -> 120."}
+    dc["priorities"] = {
+        "type": "string",
+        "description": (
+            "The soft attributes the buyer cares about MOST, most important first, as a "
+            f"comma-separated list using ONLY these keys: {', '.join(soft_keys)}. "
+            "E.g. 'designer, silhouette, color'."
+        ),
+    }
+    return dc
+
+
+def configure_data_collection(agent_id: str, vertical: str) -> dict:
+    """PATCH an existing agent so ElevenLabs extracts our structured fields from every
+    call. Needs ELEVENLABS_API_KEY."""
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    if not api_key:
+        raise RuntimeError("configure_data_collection needs ELEVENLABS_API_KEY.")
+    resp = httpx.patch(
+        f"{_ELEVENLABS_BASE_URL}/convai/agents/{agent_id}",
+        json={"platform_settings": {"data_collection": build_data_collection(vertical)}},
+        headers={"xi-api-key": api_key, "Content-Type": "application/json"}, timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()
 
 
 # Aliases the agent LLM commonly invents for our canonical keys.
@@ -369,7 +439,9 @@ def _normalize_submission(obj: dict, vertical: Optional[str] = None) -> dict:
         attributes[k] = str(v)
 
     priorities = canon.get("priorities")
-    if isinstance(priorities, list):
+    if isinstance(priorities, str):
+        priorities = [p.strip() for p in priorities.split(",") if p.strip()]
+    elif isinstance(priorities, list):
         priorities = [
             (p.get("attribute") if isinstance(p, dict) else p)
             for p in priorities
@@ -409,9 +481,11 @@ def _cli(argv: Optional[list] = None) -> int:
         python -m negotiator.voice_intake provision  <vertical> [id]     # create/update the live agent
         python -m negotiator.voice_intake intent     <vertical> "text"   # buyer-intent JSON from text
         python -m negotiator.voice_intake from-call  <vertical> <conv_id># buyer-intent JSON from a recorded call
+        python -m negotiator.voice_intake data-collection <vertical> <agent_id>  # turn on ElevenLabs field extraction
 
-    `provision` and `from-call` need ELEVENLABS_API_KEY in the environment (never
-    hard-code it). `from-call` is the post-call path — no live webhook/tunnel required.
+    `provision`, `from-call`, and `data-collection` need ELEVENLABS_API_KEY in the
+    environment (never hard-code it). `from-call` is the post-call path — no live
+    webhook/tunnel required.
     """
     import json
     import sys
@@ -434,6 +508,10 @@ def _cli(argv: Optional[list] = None) -> int:
         return 0
     if cmd == "from-call" and len(rest) >= 2:
         print(json.dumps(intent_from_conversation(rest[1], vertical=rest[0]), indent=2, ensure_ascii=False))
+        return 0
+    if cmd == "data-collection" and len(rest) >= 2:
+        # data-collection <vertical> <agent_id> — turn on ElevenLabs field extraction
+        print(json.dumps(configure_data_collection(rest[1], rest[0]).get("agent_id"), indent=2))
         return 0
     print(_cli.__doc__)
     return 2
