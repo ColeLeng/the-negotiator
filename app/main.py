@@ -30,6 +30,8 @@ from negotiator import orchestrator
 from negotiator.caller import search
 from negotiator.contracts import ProductSpec, RankedOptions
 from negotiator.estimator import confirm_spec, estimate, estimate_from_document, missing_requirements
+from negotiator.inquiry import gather_quotes, run_scenario2, shortlist
+from negotiator.seller_market import load_market, spec_from_csv
 from negotiator.tracing import Tracer
 from negotiator.voice_intake import build_agent_config, handle_tool_call
 
@@ -149,6 +151,90 @@ def negotiate_endpoint(spec: ProductSpec) -> dict:
 def demo() -> dict:
     """Full mock pipeline in one call — intake → search → negotiate → rank."""
     return _run_demo()
+
+
+# ── Scenario 2 — quote gathering across the 12 seller personas ────────────────
+def _scenario2_spec() -> ProductSpec:
+    """The buyer's requirements: prefer the market spec fixture, else build from the CSV."""
+    fixture = Path(__file__).resolve().parent.parent / "fixtures" / "wedding_market_spec.json"
+    if fixture.exists():
+        return ProductSpec.model_validate(json.loads(fixture.read_text()))
+    return spec_from_csv()
+
+
+def _scenario2_payload(pool, ranked, spec: ProductSpec) -> dict:
+    return {
+        "spec": spec.model_dump(by_alias=True),
+        "pool": pool.model_dump(),
+        "summary": pool.summary(),
+        "shortlist": ranked.model_dump(),
+    }
+
+
+@app.post("/inquiry")
+def inquiry_endpoint(spec: ProductSpec, keep: int = 5) -> dict:
+    """Run the buyer's quote-gathering pass for a given spec → evidence pool + shortlist."""
+    result = run_scenario2(spec, keep=keep)
+    return _scenario2_payload(result["pool"], result["shortlist"], spec)
+
+
+@app.get("/inquiry")
+def inquiry_demo(keep: int = 5) -> dict:
+    """Scenario 2 on the demo market: 12 seller personas → verified pool → top 3–5."""
+    spec = _scenario2_spec()
+    result = run_scenario2(spec, keep=keep)
+    return _scenario2_payload(result["pool"], result["shortlist"], spec)
+
+
+@app.get("/inquiry/trace")
+def inquiry_trace(keep: int = 5) -> dict:
+    """Scenario 2 with the full agent-trace event log (inquiry turns, verification, pruning)."""
+    spec = _scenario2_spec()
+    tracer = Tracer()
+    pool = gather_quotes(spec, load_market(), tracer=tracer)
+    ranked = shortlist(pool, spec, keep=keep, tracer=tracer)
+    return {"events": [e.to_dict() for e in tracer.events()], **_scenario2_payload(pool, ranked, spec)}
+
+
+@app.get("/inquiry/stream")
+async def inquiry_stream(keep: int = 5) -> StreamingResponse:
+    """SSE feed of the buyer building its evidence pool live — one `trace` event per
+    inquiry turn / verification / pruning decision, then `done`."""
+
+    async def events():
+        loop = asyncio.get_event_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+        tracer = Tracer()
+        tracer.subscribe(lambda evt: loop.call_soon_threadsafe(queue.put_nowait, evt))
+
+        def run() -> None:
+            spec = _scenario2_spec()
+            pool = gather_quotes(spec, load_market(), tracer=tracer)
+            shortlist(pool, spec, keep=keep, tracer=tracer)
+
+        async def runner() -> None:
+            try:
+                await asyncio.to_thread(run)
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, None)
+
+        task = asyncio.create_task(runner())
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield _sse("trace", event.to_dict())
+                await asyncio.sleep(0.05)
+        finally:
+            await task
+        yield _sse("done", {})
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/demo/stream")
