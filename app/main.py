@@ -29,9 +29,15 @@ from pydantic import BaseModel
 from negotiator import orchestrator
 from negotiator.caller import search
 from negotiator.contracts import ProductSpec, RankedOptions
-from negotiator.estimator import confirm_spec, estimate, estimate_from_document, missing_requirements
+from negotiator.estimator import (
+    confirm_spec,
+    estimate,
+    estimate_from_document,
+    missing_requirements,
+    to_buyer_intent,
+)
 from negotiator.tracing import Tracer
-from negotiator.voice_intake import build_agent_config, handle_tool_call
+from negotiator.voice_intake import build_agent_config, handle_tool_call, handle_tool_call_to_intent
 
 app = FastAPI(title="The Negotiator", version="0.1.0")
 
@@ -110,6 +116,20 @@ def estimate_document_endpoint(req: DocumentEstimateRequest) -> ProductSpec:
 def estimate_voice_webhook(req: VoiceWebhookRequest) -> ProductSpec:
     """Point the ElevenLabs agent's `submit_intake` server tool at this endpoint."""
     return handle_tool_call(req.tool_args, vertical=req.vertical)
+
+
+@app.post("/estimate/voice/intent")
+def estimate_voice_intent(req: VoiceWebhookRequest) -> dict:
+    """Voice tool-call → buyer-intent JSON (the handoff to parallel quote-seeking)."""
+    return handle_tool_call_to_intent(req.tool_args, vertical=req.vertical)
+
+
+@app.post("/estimate/intent")
+def estimate_intent_endpoint(spec: ProductSpec) -> dict:
+    """A confirmed ProductSpec → the priority + user-intent JSON handed to the
+    negotiation agent (includes a `voice_dynamic_variables` block that maps 1:1 onto its
+    ElevenLabs dynamic variables)."""
+    return to_buyer_intent(spec)
 
 
 @app.get("/estimate/voice/agent-config/{vertical}")
