@@ -126,9 +126,10 @@ def estimate_voice_intent(req: VoiceWebhookRequest) -> dict:
 
 @app.post("/estimate/intent")
 def estimate_intent_endpoint(spec: ProductSpec) -> dict:
-    """A confirmed ProductSpec → the priority + user-intent JSON handed to the
-    negotiation agent (includes a `voice_dynamic_variables` block that maps 1:1 onto its
-    ElevenLabs dynamic variables)."""
+    """A confirmed ProductSpec → the priority + user-intent JSON. Carries a
+    `caller_dynamic_variables` block (Stage 1: parallel quote-seeking, no price
+    anchoring) and a `negotiation_dynamic_variables` block (Stage 2: negotiation once a
+    BATNA exists)."""
     return to_buyer_intent(spec)
 
 

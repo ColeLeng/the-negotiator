@@ -228,9 +228,10 @@ def handle_tool_call(tool_args: dict, vertical: Optional[str] = None) -> Product
 
 
 def handle_tool_call_to_intent(tool_args: dict, vertical: Optional[str] = None) -> dict:
-    """Voice tool-call → the buyer-intent JSON handoff (spec + priorities + the
-    negotiation agent's dynamic-variable block). This is the artifact passed to the
-    parallel quote-seeking session."""
+    """Voice tool-call → the buyer-intent JSON handoff. Includes a
+    `caller_dynamic_variables` block (Stage 1 — hand to the caller for parallel
+    quote-seeking, no price anchoring) and a `negotiation_dynamic_variables` block
+    (Stage 2 — for negotiation once a BATNA exists)."""
     return to_buyer_intent(handle_tool_call(tool_args, vertical=vertical))
 
 
