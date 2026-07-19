@@ -1,4 +1,4 @@
-# The Negotiator
+# The Citable Negotiator
 
 > **Voice agents that call, compare, and haggle — pick your market, never overpay again.**
 
