@@ -1,0 +1,13 @@
+vendor,product,style,list_price,final_price,saved,ending,upsells_kept,credit_offer,credit_type,credit_conditions,commitment_id
+Pronovias,Dion,tough_negotiator,2400,2217,183,itemized_quote,,50,store_credit,photo_review,cmt-pronovias-r6
+Maggie Sottero,Willow,tough_negotiator,2100,2031,69,itemized_quote,,40,store_credit,photo_review,cmt-maggie-sottero-r4
+Watters,Garance 64307B,tough_negotiator,2250,2217,33,itemized_quote,,30,coupon,honest_positive_review,cmt-watters-r6
+Justin Alexander,Style 88349,tough_negotiator,2300,2217,83,itemized_quote,,46,store_credit,share_preferences,cmt-justin-alexander-r6
+Casablanca Bridal,2406 Evelina,stonewaller_no_prices_by_phone,2200,2067,133,itemized_quote,,25,store_credit,photo_review,cmt-casablanca-bridal-r5
+Jenny Yoo,Jennifer 125100B,stonewaller_no_prices_by_phone,1950,1867,83,itemized_quote,,20,coupon,share_preferences,cmt-jenny-yoo-r3
+Essense of Australia,D4225,stonewaller_no_prices_by_phone,2050,1950,100,itemized_quote,,30,store_credit,photo_review,cmt-essense-of-australia-r4
+Rebecca Ingram,Lauren 7RZ880,stonewaller_no_prices_by_phone,1900,1867,33,itemized_quote,,20,store_credit,honest_positive_review,cmt-rebecca-ingram-r3
+Mori Lee,Meredith,hard_sell_upseller,1980,2067,-87,itemized_quote,,20,store_credit,photo_review,cmt-mori-lee-r5
+Allure Bridals,C747,hard_sell_upseller,1899,1950,-51,itemized_quote,,25,store_credit,photo_review,cmt-allure-bridals-r4
+Stella York,7560,hard_sell_upseller,1950,1950,0,itemized_quote,,98,coupon,photo_review,cmt-stella-york-r4
+Madi Lane,Landon ML25100,hard_sell_upseller,2050,2067,-17,itemized_quote,,30,store_credit,share_preferences,cmt-madi-lane-r5

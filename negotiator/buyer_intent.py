@@ -83,6 +83,7 @@ def commitment_terms(
     credit: float,
     list_price: float,
     conditions: str = "photo_review",
+    deal_type: str = "store_credit",
 ) -> dict[str, str]:
     """Build the `terms_delta` describing a contingent credit commitment.
 
@@ -92,7 +93,7 @@ def commitment_terms(
     """
     return {
         "credit_offer": f"{credit:.0f}",
-        "credit_type": "store_credit",
+        "credit_type": deal_type,
         "credit_pct": f"{round(100 * credit / list_price, 1)}" if list_price else "0",
         "credit_conditions": conditions,
         "credit_unlock": "on_purchase_placed",

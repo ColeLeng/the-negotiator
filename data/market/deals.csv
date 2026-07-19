@@ -1,0 +1,15 @@
+vendor,deal_type,amount,pct,conditions,unlock,nonrefundable,min_purchase
+Pronovias,store_credit,50,,photo_review,on_purchase_placed,true,
+Maggie Sottero,store_credit,40,,photo_review,on_purchase_placed,true,
+Watters,coupon,30,,honest_positive_review,on_purchase_placed,true,
+Justin Alexander,store_credit,,2,share_preferences,on_purchase_placed,true,
+Casablanca Bridal,store_credit,25,,photo_review,on_purchase_placed,true,
+Jenny Yoo,coupon,20,,share_preferences,on_purchase_placed,true,
+Essense of Australia,store_credit,30,,photo_review,on_purchase_placed,true,
+Rebecca Ingram,store_credit,20,,honest_positive_review,on_purchase_placed,true,
+Mori Lee,store_credit,20,,photo_review,on_purchase_placed,true,
+Mori Lee,coupon,40,,photo_review,on_purchase_placed,true,1900
+Allure Bridals,store_credit,25,,photo_review,on_purchase_placed,true,
+Stella York,coupon,,5,photo_review,on_purchase_placed,true,
+Madi Lane,store_credit,30,,share_preferences,on_purchase_placed,true,
+Madi Lane,coupon,60,,photo_review,on_purchase_placed,true,2000

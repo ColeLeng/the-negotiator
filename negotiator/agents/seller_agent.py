@@ -21,10 +21,11 @@ from ..contracts import NegotiationMessage, SellerState, seller_msg
 
 
 class SellerAgent:
-    def __init__(self, state: SellerState, max_rounds: int = 6):
-        # Load this vendor's brand/policy/SLA profile (if any) and fold it into our own
-        # copy of the state: adds accessory upsells + a value_score that holds price.
-        self.brand = brand_profiles.load_brand(state.vendor)
+    def __init__(self, state: SellerState, max_rounds: int = 6, brand: dict | None = None):
+        # Brand/policy/SLA profile: use an injected dict (CSV-driven harness) if given,
+        # else load this vendor's config from disk. Folded into our own copy of the state:
+        # adds accessory upsells + a value_score that holds price + per-brand credit_deals.
+        self.brand = brand if brand is not None else brand_profiles.load_brand(state.vendor)
         if self.brand:
             state = brand_profiles.apply_brand(state, self.brand)
             self.value_score = brand_profiles.value_score(self.brand)
@@ -128,28 +129,51 @@ class SellerAgent:
             self.intent.asked.add(ask)
         if buyer_price is not None and buyer_price < my_min and self.intent.price_sensitive():
             gap = my_min - buyer_price
-            conditions = "photo_review"
-            credit = seller_value.choose_credit(
-                self.state.list_price, gap, action_value=buyer_intent.ACTION_VALUE[conditions]
-            )
-            if credit:
+            face, conditions, deal_type = self._select_credit(gap, buyer_price)
+            if face:
                 terms.update(buyer_intent.commitment_terms(
-                    self.state.vendor, self.round, credit, self.state.list_price, conditions
+                    self.state.vendor, self.round, face, self.state.list_price, conditions, deal_type
                 ))
         return terms
 
     def _commitment_on_accept(self, terms: dict) -> dict:
         """Document a small review-for-credit commitment in the accept message's terms_delta
         (the transcript is the bilateral record; buyer echo is an optional Suman upgrade)."""
-        conditions = "photo_review"
-        credit = seller_value.choose_credit(
-            self.state.list_price, self.state.list_price * 0.05,
-            action_value=buyer_intent.ACTION_VALUE[conditions],
-        ) or 10.0
+        current = terms.get("_price")  # not set; use list*0.05 gap to force a small standard deal
+        face, conditions, deal_type = self._select_credit(self.state.list_price * 0.05, current)
+        face = face or 10.0
         terms.update(buyer_intent.commitment_terms(
-            self.state.vendor, self.round, credit, self.state.list_price, conditions
+            self.state.vendor, self.round, face, self.state.list_price, conditions, deal_type
         ))
         return terms
+
+    def _select_credit(self, price_gap: float, current_price):
+        """Pick a credit deal — prefer the brand's configured `credit_deals` (respecting
+        `min_purchase`, cheapest applicable that beats the price gap), else fall back to the
+        default $10/$20/5% tiers. Returns (face, conditions, deal_type). Credit only — never price."""
+        deals = (self.brand or {}).get("credit_deals") or []
+        cands = []
+        for d in deals:
+            face = d.get("amount") or (round(self.state.list_price * float(d["pct"]) / 100, 2) if d.get("pct") else 0.0)
+            if not face:
+                continue
+            mp = d.get("min_purchase")
+            if mp and current_price is not None and current_price < float(mp):
+                continue
+            cands.append((float(face), d.get("conditions", "photo_review"), d.get("deal_type", "store_credit")))
+        if cands:
+            cands.sort(key=lambda c: c[0])   # smallest face first (protect margin)
+            for face, cond, dtype in cands:
+                av = buyer_intent.ACTION_VALUE.get(cond, 0.0)
+                if price_gap <= 0 or seller_value.credit_expected_cost(face, action_value=av) < price_gap:
+                    return face, cond, dtype
+            return cands[0]                  # smallest applicable, even if not strictly cheaper
+        conditions = "photo_review"
+        face = seller_value.choose_credit(
+            self.state.list_price, price_gap if price_gap > 0 else self.state.list_price * 0.05,
+            action_value=buyer_intent.ACTION_VALUE[conditions],
+        )
+        return face, conditions, "store_credit"
 
     # ── style policies (scaffold — Ella deepens) ─────────────────────────────
 
