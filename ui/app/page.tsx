@@ -147,7 +147,7 @@ export default function HomePage() {
     <main className="app">
       <header className="top">
         <div>
-          <h1 className="brand">The Negotiator</h1>
+          <h1 className="brand">Citable Negotiator</h1>
           <p className="tagline">
             Agents that shop and haggle for you — watch a real price move as buyer and
             seller push against each other.

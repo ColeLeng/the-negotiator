@@ -120,7 +120,7 @@ That single set of three calls covers: 3 styles · price moves · honesty + disc
 
 Write this **after** the Demo is final so it matches the video.
 
-> A lot of buying still happens on the phone — “call for a price.” For the same job, quotes can swing by as much as 5.6×, and most people still take the first number they hear. The Negotiator is a voice agent that shops those markets for you. You tell it what you want (by voice or from a document). It confirms the details, calls multiple sellers, compares real quotes, and negotiates — then calls you back with a clear recommendation and the proof behind it. We start with custom wedding dresses: high emotion, hidden prices, no time to haggle. In the demo you’ll hear a real back-and-forth with the agent, see a price move during negotiation, and see the final pick with proof from the calls. The same setup can later cover other custom purchases — furniture, jewelry, and more — without rebuilding the core.
+> A lot of buying still happens on the phone — “call for a price.” For the same job, quotes can swing by as much as 5.6×, and most people still take the first number they hear. Citable Negotiator is a voice agent that shops those markets for you. You tell it what you want (by voice or from a document). It confirms the details, calls multiple sellers, compares real quotes, and negotiates — then calls you back with a clear recommendation and the proof behind it. We start with custom wedding dresses: high emotion, hidden prices, no time to haggle. In the demo you’ll hear a real back-and-forth with the agent, see a price move during negotiation, and see the final pick with proof from the calls. The same setup can later cover other custom purchases — furniture, jewelry, and more — without rebuilding the core.
 
 ---
 
@@ -194,7 +194,7 @@ The **trace screen is the Tech hero** — the real seller call plays on the left
 
 | Time | What |
 |---|---|
-| 0–8s | “We built The Negotiator” |
+| 0–8s | “We built Citable Negotiator” |
 | 8–50s | Each person: name + one plain job |
 | 50–60s | “Shopping agents for markets that still price by phone.” + GitHub |
 
