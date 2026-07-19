@@ -1,117 +1,114 @@
 # Hackathon submission copy — Citable Negotiator
 
 Paste-ready text for the Hack-Nation final submission form.
+Tone follows `docs/final-deliverable-proposal.md`: plain language, one sharp wedge, no architecture dump in jury-facing fields.
 
 **Project name:** Citable Negotiator  
 **Live Project URL:** `https://github.com/ColeLeng/the-negotiator`  
 **GitHub Repository URL:** `https://github.com/ColeLeng/the-negotiator`
 
+**One line (memorize):** You talk once. It shops and haggles. It calls you back with a better deal — and proof.
+
 ---
 
 ## Short Description
 
-Voice agents that call, compare, and haggle on quote-based purchases — confirm what you want once, then get a ranked deal with transcript-backed proof and a price that actually moves.
+You talk once. It shops and haggles. It calls you back with a better deal — and proof. A phone agent for “call for a price” markets that moves a real number on the call, only uses real competing quotes, and returns the pick with the transcripts behind it.
 
 ---
 
 ## 1. Problem & Challenge
 
-A huge share of buying still happens on the phone — “call for a price.” For the same job, quotes can swing by as much as **5.6×**, and most people still take the first number they hear (~67%). High-consideration, customized purchases (weddings, movers, made-to-order goods) are opaque, stressful, and easy to overpay for — and almost nobody has time to call five shops, compare fee structures, and negotiate deliberately.
+A lot of buying still happens on the phone — “call for a price.” For the same job, quotes can swing by as much as **5.6×**. Most people still take the first number (~**67%**). Weddings often get charged more for the same work (~**28%**).
 
-We set out to build an agent that does that work for the buyer: listen once, shop in parallel, haggle honestly, and come back with a clear recommendation plus proof.
+The only defense is calling five shops, comparing messy fee structures, and negotiating — and almost nobody does that. Other demos in this track will show an agent that *talks*. The hard problem is an agent that **actually moves a price**, never invents leverage, and can show **why** the deal is the deal.
 
 ---
 
 ## 2. Target Audience
 
-- **Primary:** people buying high-emotion, quote-based products where prices aren’t published — starting with custom / sample / resale wedding dresses.
-- **Secondary:** anyone shopping opaque phone-quote markets (movers, furniture, jewelry, B2B packaging) who wants leverage without spending hours on hold.
-- **Jurors / builders:** teams exploring agent-to-agent commerce, voice agents, and honest multi-party negotiation.
+Brides (and anyone else) stuck in opaque, phone-quote markets: custom dresses, movers, furniture, jewelry — high stakes, hidden prices, no time to haggle. If you’ve ever taken the first quote because calling five more shops felt impossible, you’re the user.
 
 ---
 
 ## 3. Solution & Core Features
 
-**Citable Negotiator** turns one buyer conversation into multi-shop negotiation:
+**Citable Negotiator** is a phone agent that shops those markets for you — then proves it.
 
-1. **Estimator (intake)** — voice or document intake confirms a clean product spec (what you want, hard vs soft constraints, target and max price).
-2. **Caller** — fans out search across real options and ranks comparable shops (BATNA seeds the next call).
-3. **Orchestrator + buyer agents** — runs parallel multi-round negotiations with seller agents; price moves from real ZOPA dynamics, not a script.
-4. **Honesty guard** — only cites competing quotes that actually exist; blocks invented leverage and inbound injection.
-5. **Recommendation + proof** — ranked outcome with itemized quotes, transcripts, and a live price ticker so you can *see* the deal move.
+1. You tell it what you want (voice or a document). It confirms the details in plain words.
+2. It calls several shops at once — including a real seller on the line, not just chat.
+3. On the call, the **price comes down** because of a real competing quote, not a scripted discount.
+4. It only uses quotes the buyer actually has. Made-up deals get blocked.
+5. It calls you back with the best pick, the new price, and the **proof** (transcripts / cited quotes).
 
-Pitch line: *You talk once. It shops and haggles. It calls you back with a better deal — and proof.*
+What you’ll see in 60 seconds: natural talk → a number that moves → a clear answer with proof.
 
 ---
 
 ## 4. Unique Selling Proposition (USP)
 
-- **A price that actually moves** during negotiation — emergent from buyer/seller private floors and concessions, not a canned script.
-- **Citable / transcript-backed outcomes** — every recommendation is tied to real call proof, not a vague “best deal.”
-- **Honest leverage only** — competing quotes must exist on the shared blackboard; the guard refuses fake BATNAs.
-- **Config-swappable verticals** — wedding dress demo today; movers or B2B packaging via config, not a rewrite.
-- **Voice-first, contract-first** — ElevenLabs intake + FastAPI/Next.js live demo on stable Pydantic contracts.
+Most Track 1 projects will demo an agent that negotiates. Ours has to survive three jury tests:
+
+1. **Is the price fake?** — You watch it move live during the call (the money shot).
+2. **Is the leverage fake?** — It only cites real competing quotes. Fake ones are refused.
+3. **Can I trust the answer?** — The recommendation comes with proof from the calls — that’s why it’s *Citable*.
+
+Also: two real voice legs (buyer↔agent and agent↔seller), three seller styles (tough / won’t-quote / upseller), and a live trace so you can see the agent think — not actors reading a script.
 
 ---
 
 ## 5. Implementation & Technology
 
-- **Backend:** Python 3.12, FastAPI, asyncio parallel negotiation sessions.
-- **Contracts:** Pydantic models aligned with schema.org Product / Offer (ProductSpec → RankedOptions → NegotiationSession).
-- **Agents:** Estimator, Caller, Buyer/Seller agents with ZOPA / utility models; optional Claude where keys exist, full mock path without keys.
-- **Voice:** ElevenLabs agent intake; seller/buyer call legs for the live demo.
-- **Search:** curated bridal catalog + optional live web (Exa / Tavily / Serper / Brave).
-- **Frontend:** Next.js demo with SSE live price ticker + transcript; agent event trace screen.
-- **Safety:** outbound competing-quote honesty + inbound sanitize (`guard.py`).
+Built so the demo is reproducible, not a one-off video:
+
+- Python + FastAPI orchestration; parallel shop sessions
+- Voice on both legs via ElevenLabs (buyer intake + seller negotiation)
+- Honesty guard on outbound competing quotes + inbound sanitize
+- Shared blackboard so leverage is only real BATNAs
+- Next.js live price ticker + transcript; agent event trace screen
+- Runs end-to-end on mocks with no API keys; optional live search when keys exist
+- Same core later for furniture, jewelry, movers — config swap, not a rewrite
 
 ---
 
 ## 6. Results & Impact
 
-- End-to-end demo that shops a bridal scenario and **moves a real negotiating price** on screen.
-- Parallel sessions with distinct seller styles (tough, stonewaller, upseller) and structured endings (quote, callback, or decline).
-- Jury-facing story backed by market research (quote spreads, wedding premium, “take the first number” behavior).
-- Open repo that runs on mocks with no API keys — judges can clone and reproduce.
-- Same architecture reusable for other phone-quote markets without rebuilding the core.
+- A demo where a **real negotiating price moves** on screen / on the call
+- Structured endings every time: itemized quote, callback commitment, or documented decline — never a vague range
+- Three seller styles covered in one scenario set (deal / callback / itemize the upsell)
+- Open repo judges can clone and run without keys
+- Jury story anchored in market numbers (5.6× spread, ~67% take the first quote, ~28% wedding premium) — not vibes
 
 ---
 
 ## What was your most fun moment during the hackathon?
 
-Recording the team intro after an all-nighter — Ella almost said the agent “hags” instead of “haggles,” Cole stopped to course-correct mid-take, then roasted his own opening (“I need to stop bullshitting in the beginning”) and we immediately did a cleaner take. Scrappy, sleep-deprived, and somehow the negotiator demo still worked the morning of submission.
+Recording the team intro after an all-nighter — Ella almost said the agent “hags” instead of “haggles,” Cole stopped mid-take to fix it, then roasted his own opening (“I need to stop bullshitting in the beginning”) and we immediately did a cleaner take. Scrappy, sleep-deprived, and somehow the price still moved the morning of submission.
 
 ---
 
 ## Additional Information (Optional)
 
-Built for **Hack-Nation Challenge 01 — The Negotiator** (ElevenLabs), by a small team shipping Estimator, Caller, Orchestrator, seller personas, market research, and a live trace UI in parallel. Canonical architecture: `docs/technical-architecture.md`. Demo scenario + cited price bands: `docs/wedding-dress-research.md`. Product brand for submission: **Citable Negotiator**.
+Challenge track: Hack-Nation Challenge 01 — The Negotiator (ElevenLabs). Product name for submission: **Citable Negotiator**. Pitch doc we wrote against: `docs/final-deliverable-proposal.md`. Architecture: `docs/technical-architecture.md`. Bridal scenario + cited price bands: `docs/wedding-dress-research.md`.
 
 ---
 
 ## Technologies / Tags
 
-Add these one at a time:
-
 - Python
 - FastAPI
 - Next.js
+- ElevenLabs
 - TypeScript
 - Pydantic
-- ElevenLabs
-- asyncio
-- SSE
-- Claude / Anthropic (optional)
-- schema.org
 
 ## Additional Tags
 
 - voice-agents
-- agent-to-agent
 - negotiation
-- ZOPA
-- BATNA
-- e-commerce
-- bridal
-- hackathon
+- honest-leverage
 - transcript-backed
+- price-discovery
+- bridal
+- e-commerce
 - multi-agent
