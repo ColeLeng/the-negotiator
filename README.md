@@ -16,7 +16,7 @@ Some markets never publish a real price. Moving is the best-documented example: 
 
 ## Our vertical: **customized DTC** (config-swappable)
 
-We picked a **customized, one-time, high-emotion purchase** — made-to-order bridal — where prices are opaque, alternatives are plentiful, and buyers have zero leverage and zero time. The buyer describes what she wants once; the agents shop and haggle. Vertical-specific parameters live in [`config/verticals/`](config/verticals/) — switching to movers is a **config swap, not a rewrite**.
+We picked a **customized, one-time, high-emotion purchase** — made-to-order bridal — where prices are opaque, alternatives are plentiful, and buyers have zero leverage and zero time. The buyer describes what she wants once; the agents shop and haggle. Vertical-specific parameters live in [`config/verticals/`](config/verticals/) — switching to movers, or to **B2B e-commerce packaging sourcing** (`ecommerce-packaging.json`, backed by [`negotiator/market_benchmarks.py`](negotiator/market_benchmarks.py)'s `b2b_packaging_smb` research), is a **config swap, not a rewrite**.
 
 > **🔬 Narrowed demo scenario + market data:** [`docs/wedding-dress-research.md`](docs/wedding-dress-research.md) (Cole) — narrows the vertical to *one bride, one look, three channels that genuinely haggle* (resale / sample sale / made-to-order), with cited 2026 price bands per channel, red-flag thresholds, negotiation levers, and a runnable end-to-end scenario in [`fixtures/wedding_dress_scenario.json`](fixtures/wedding_dress_scenario.json). Builds on Jagger's [`market_benchmarks.py`](negotiator/market_benchmarks.py).
 
@@ -62,7 +62,7 @@ The **contracts in [`negotiator/contracts.py`](negotiator/contracts.py)** are th
 - **`NegotiationSession` / `NegotiationMessage`** — the runtime + transcript; `current_price` is the moving number the UI watches.
 
 ### 1 · Estimator — *intake by interview or documents* (Jagger)
-Turns messy human input into a clean `ProductSpec` with ZOPA parameters. Voice interview (ElevenLabs) **and** a document path, both producing the same schema, confirmed before any call. → [`negotiator/estimator.py`](negotiator/estimator.py)
+Turns messy human input into a clean `ProductSpec` with ZOPA parameters. Three intake surfaces — typed/transcribed text, documents (quotes, bills, CSV inventory lists, photos), and an ElevenLabs Agents voice interview — all funnel through the *same* `estimate()` call, so they can never produce diverging specs. Extraction prefers Claude (`ANTHROPIC_API_KEY`) against the vertical's `config/verticals/*.json` schema, falling back to a deterministic heuristic extractor with no keys; missing hard constraints or price bounds are surfaced by `missing_requirements()`, and nothing reaches the Caller until `confirm_spec()` passes. → [`negotiator/estimator.py`](negotiator/estimator.py) · [`negotiator/document_intake.py`](negotiator/document_intake.py) · [`negotiator/voice_intake.py`](negotiator/voice_intake.py)
 
 ### 2 · Caller — *parallel quote gathering* (Cole)
 Fans out over the web (Exa/Tavily/Serper) + business listings (Google Places/Yelp) for **real** options, scores each with the buyer value function, returns a ranked `RankedOptions`. → [`negotiator/caller.py`](negotiator/caller.py)
@@ -102,7 +102,10 @@ Vendor/counterparty agents with **hidden reservation prices + inventory-driven c
 the-negotiator/
 ├── negotiator/                  # the Python package (contract-first)
 │   ├── contracts.py             # FROZEN Pydantic models — the integration surface
-│   ├── estimator.py             # Jagger — estimate(text) -> ProductSpec
+│   ├── estimator.py             # Jagger — estimate(text) -> ProductSpec (+ confirm_spec, missing_requirements)
+│   ├── document_intake.py       # Jagger — document intake path: text/CSV + photo (Claude vision)
+│   ├── voice_intake.py          # Jagger — ElevenLabs Agent config + voice tool-call intake path
+│   ├── market_benchmarks.py     # Jagger — per-vertical price bands / red flags / BATNA guidance (pure config)
 │   ├── caller.py                # Jagger — search(spec) -> RankedOptions
 │   ├── buyer_value.py           # Cole + Kazi — utility / feasibility / concession (pure)
 │   ├── seller_value.py          # Ella — surplus / dynamic_floor (pure)
@@ -115,7 +118,7 @@ the-negotiator/
 ├── tests/                       # pytest — value-model + negotiation ("done when" checks)
 ├── run_demo.py                  # end-to-end mock: a moving price, no keys/network
 ├── docs/                        # technical-architecture.md (canonical) · architecture.md · challenge-brief.md
-├── config/verticals/            # config-not-code reference data (wedding-dress / moving)
+├── config/verticals/            # config-not-code reference data (wedding-dress / moving / ecommerce-packaging)
 └── pyproject.toml · requirements.txt · .env.example
 ```
 

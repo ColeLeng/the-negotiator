@@ -23,8 +23,8 @@
     }
   },
   "specFields": [
-    { "key": "silhouette", "type": "enum", "values": ["A-line", "ball-gown", "mermaid", "sheath", "fit-and-flare", "trumpet"], "prompt": "What silhouette are you looking for?" },
-    { "key": "color", "type": "enum", "values": ["white", "ivory", "champagne", "blush", "off-white"], "prompt": "What color?" },
+    { "key": "silhouette", "type": "enum", "values": ["A-line", "ball-gown", "mermaid", "sheath", "fit-and-flare", "trumpet"], "constraint": "soft", "prompt": "What silhouette are you looking for?" },
+    { "key": "color", "type": "enum", "values": ["white", "ivory", "champagne", "blush", "off-white"], "constraint": "soft", "prompt": "What color?" },
     { "key": "size", "type": "string", "constraint": "hard", "prompt": "What dress size (US)?" },
     { "key": "wedding_date", "type": "date", "constraint": "hard", "prompt": "When is the wedding? (drives the lead-time hard constraint)" },
     { "key": "acquisition_channel", "type": "enum", "values": ["off_the_rack", "made_to_order", "custom", "sample_sale", "resale"], "required": false, "prompt": "Open to sample-sale or preowned to save, or new-only?" },

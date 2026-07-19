@@ -1,0 +1,47 @@
+{
+  "vertical": "ecommerce-packaging",
+  "displayName": "E-Commerce Packaging (B2B SMB)",
+  "market": "B2B",
+  "description": "SMB DTC brands sourcing custom packaging (mailers, boxes, inserts) from suppliers. Included as the THIRD vertical to prove the system is config, not code — no agent changes vs. wedding-dress.json / moving.json. Mirrors the b2b_packaging_smb vertical in negotiator/market_benchmarks.py.",
+  "specFields": [
+    { "key": "material_spec", "type": "string", "prompt": "What packaging material and print spec do you need (e.g. corrugated mailer box, kraft mailer, custom 4-color print, matte vs gloss finish)?" },
+    { "key": "minimum_order_quantity", "type": "string", "prompt": "What order quantity are you planning — a one-time run, or an ongoing minimum order quantity?" },
+    { "key": "dimensions", "type": "string", "prompt": "What are the box or mailer dimensions?" },
+    { "key": "lead_time_reliability", "type": "string", "required": false, "prompt": "What lead time do you need, and how much flexibility do you have on the ship date?" },
+    { "key": "delivery_included", "type": "string", "required": false, "prompt": "Do you need freight/delivery included, or will you arrange your own logistics?" },
+    { "key": "payment_terms", "type": "string", "required": false, "prompt": "What payment terms are you looking for (e.g. NET-30, NET-15, deposit + balance)?" },
+    { "key": "annual_commit", "type": "string", "required": false, "prompt": "Is this a one-time order or would you consider an annual volume commitment for a better rate?" }
+  ],
+  "priceBenchmark": {
+    "source": "Personalized packaging market 2024 · SMB e-com aggregate (see negotiator/market_benchmarks.py: b2b_packaging_smb/annual_contract)",
+    "currency": "USD",
+    "median": 40000,
+    "p25": 25000,
+    "p75": 65000,
+    "note": "Annual packaging spend for a growing DTC SMB. Ground truth for red-flag detection. Replace with a live benchmark feed for production."
+  },
+  "redFlags": [
+    { "rule": "tier_authority_ceiling_hit", "thresholdPct": 10, "message": "B2B reps have tiered discount authority (L1 5-10%, L2 10-20%, Manager 20-40%). An offer stuck ~10% above target usually means the rep is at their authority ceiling — ask to escalate to a manager." },
+    { "rule": "mdf_coop_not_offered", "thresholdPct": 5, "message": "Market Development Funds / co-op program discounts are often unclaimed by SMB buyers who don't know to ask. Always ask directly regardless of the quoted price." },
+    { "rule": "hidden_fee_stack", "thresholdPct": 30, "message": "Plate/setup fees, rush charges, and freight commonly stack to 30%+ above the base per-unit quote — ask for a fully itemized quote before comparing." }
+  ],
+  "negotiationLevers": [
+    "annual_commit",
+    "payment_terms",
+    "category_consolidation",
+    "quarter_end_timing",
+    "rebate_tier"
+  ],
+  "callListSource": {
+    "provider": "google_places",
+    "query": "custom packaging supplier OR corrugated packaging manufacturer",
+    "filters": { "minRating": 4.0, "radiusKm": 80 },
+    "note": "Also supports direct sourcing platforms (Alibaba, ThomasNet) for suppliers without a local listing."
+  },
+  "counterpartyStyles": [
+    { "id": "tough_negotiator", "description": "Holds firm at list price, wants a signed annual commitment before discounting." },
+    { "id": "stonewaller_no_prices_by_phone", "description": "'We need to route this through sales engineering for a formal quote' — must extract a per-unit ballpark and MOQ before hanging up." },
+    { "id": "hard_sell_upseller", "description": "Bundles plate/setup fees, rush production, and premium finishes into the total. Agent must itemize and challenge each line." }
+  ],
+  "disclosure": "Hi, this is an AI assistant calling on behalf of a company evaluating packaging suppliers for a new sourcing round. I want to be upfront that I'm an AI — I'm gathering pricing, MOQ, and terms information. Do you have a few minutes for some quick questions?"
+}
