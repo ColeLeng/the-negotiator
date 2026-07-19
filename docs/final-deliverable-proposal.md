@@ -120,7 +120,7 @@ That single set of three calls covers: 3 styles · price moves · honesty + disc
 
 Write this **after** the Demo is final so it matches the video.
 
-> A lot of buying still happens on the phone — “call for a price.” For the same job, quotes can swing by as much as 5.6×, and most people still take the first number they hear. The Negotiator is a voice agent that shops those markets for you. You tell it what you want (by voice or from a document). It confirms the details, calls multiple sellers, compares real quotes, and negotiates — then calls you back with a clear recommendation and the proof behind it. We start with custom wedding dresses: high emotion, hidden prices, no time to haggle. In the demo you’ll hear a real back-and-forth with the agent, see a price move during negotiation, and see the final pick with proof from the calls. The same setup can later cover other custom purchases — furniture, jewelry, and more — without rebuilding the core.
+> A lot of buying still happens on the phone — “call for a price.” For the same job, quotes can swing by as much as 5.6×, and most people still take the first number they hear. The Citable Negotiator is a voice agent that shops those markets for you. You tell it what you want (by voice or from a document). It confirms the details, calls multiple sellers, compares real quotes, and negotiates — then calls you back with a clear recommendation and the proof behind it. We start with custom wedding dresses: high emotion, hidden prices, no time to haggle. In the demo you’ll hear a real back-and-forth with the agent, see a price move during negotiation, and see the final pick with proof from the calls. The same setup can later cover other custom purchases — furniture, jewelry, and more — without rebuilding the core.
 
 ---
 
@@ -176,6 +176,8 @@ Both people can read from a script. **The agent must sound smooth** on both call
 
 ## Tech video (max 60 sec)
 
+> **Read-aloud script:** word-for-word narration + shot list in [`tech-team-video-scripts.md`](tech-team-video-scripts.md).
+
 **Goal:** Show it’s real work, not actors reading a script.
 
 | Time | What to show |
@@ -192,11 +194,17 @@ The **trace screen is the Tech hero** — the real seller call plays on the left
 
 ## Team video (max 60 sec)
 
+> **Read-aloud script:** first-person line per person in [`tech-team-video-scripts.md`](tech-team-video-scripts.md).
+
+Team is the only video where the founders talk to camera, so it carries the **vision +
+impact**, not just names: **why → who → where it goes.**
+
 | Time | What |
 |---|---|
-| 0–8s | “We built The Negotiator” |
-| 8–50s | Each person: name + one plain job |
-| 50–60s | “Shopping agents for markets that still price by phone.” + GitHub |
+| 0–8s | Vision hook: “Most buying still happens on the phone — and people overpay.” + title **The Citable Negotiator** |
+| 8–16s | One pain number (**5.6×** for the same job) → “so we built an agent that shops for you” |
+| 16–48s | Each person: name + one plain job |
+| 48–60s | Where it goes next (more custom markets) + “Shopping agents for markets that still price by phone.” + GitHub |
 
 | Who | Say |
 |---|---|

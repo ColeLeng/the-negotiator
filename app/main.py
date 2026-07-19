@@ -44,7 +44,7 @@ from negotiator.voice_intake import (
     intent_from_conversation,
 )
 
-app = FastAPI(title="The Negotiator", version="0.1.0")
+app = FastAPI(title="The Citable Negotiator", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
