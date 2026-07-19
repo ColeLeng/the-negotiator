@@ -333,6 +333,42 @@ def test_handle_tool_call_to_intent_returns_json_handoff():
     assert intent["budget"]["reservation_price"] == 2200
 
 
+def test_intent_from_conversation_uses_recorded_transcript(monkeypatch):
+    """Post-call path: a recorded ElevenLabs transcript → buyer-intent JSON, without a
+    live webhook."""
+    import negotiator.voice_intake as vi
+
+    fake_conversation = {
+        "transcript": [
+            {"role": "agent", "message": "Hi! What dress are you looking for?"},
+            {"role": "user", "message": "An ivory wedding dress, size US 8."},
+            {"role": "user", "message": "Hoping to stay under $1800, hard cap $2400, within 30 days."},
+        ]
+    }
+    monkeypatch.setattr(vi, "fetch_conversation", lambda cid: fake_conversation)
+
+    intent = vi.intent_from_conversation("conv_test", vertical="wedding-dress")
+    assert intent["budget"]["target_price"] == 1800.0
+    assert intent["budget"]["reservation_price"] == 2400.0
+    assert intent["timeline"]["deadline_days"] == 30
+    by_name = {m["attribute"]: m["value"] for m in intent["must_haves"]}
+    assert by_name.get("size", "").upper().replace(" ", "") == "US8"
+    # caller stage still never anchors price.
+    assert "target_price" not in intent["caller_dynamic_variables"]
+
+
+def test_transcript_to_text_flattens_roles():
+    from negotiator.voice_intake import transcript_to_text
+    convo = {"transcript": [
+        {"role": "user", "message": "ivory dress"},
+        {"role": "agent", "message": "got it"},
+        {"role": "user", "text": None},
+    ]}
+    text = transcript_to_text(convo)
+    assert "user: ivory dress" in text
+    assert "agent: got it" in text
+
+
 def test_wedding_dress_intake_agent_greets_the_buyer():
     """The intake agent's first line greets the buyer (intakeGreeting), not the
     seller-call disclosure."""
