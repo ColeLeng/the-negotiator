@@ -315,6 +315,86 @@ Default to **web voice** unless the phone ring adds real value — it’s far le
 
 ---
 
+## Recording SOP (step by step, per person)
+
+Follow this in order. Everyone can be on a **muted Zoom to cue timing** — just don’t record the Zoom.
+
+### 0 · Before shoot day (everyone)
+
+- [ ] **Cole:** ElevenLabs credits loaded and shared; both agents (intake + seller-negotiation) working.
+- [ ] **Suman:** the pipeline runs end to end at least once (intake → outbound call → report).
+- [ ] **Ella:** the one frozen scenario is set — dress details, buyer target price + max, and the three sellers’ hidden limits/styles.
+- [ ] **Everyone:** install **OBS**, test screen + system audio + mic capture, use **headphones** (kills echo), quiet room.
+- [ ] Agree the **buyer script** and the **three seller scripts** (Cole voices sellers).
+
+### 1 · Shared setup at start of shoot (5 min)
+
+- [ ] Confirm same scenario numbers on everyone’s screen (one source of truth).
+- [ ] Everyone starts OBS, does a 10-second test clip, checks the audio meter is moving.
+- [ ] Decide take order: Buyer intake → Seller call #1 (price moves) → #2 (callback) → #3 (upsell).
+
+### 2 · Ella — the BUYER (records the intake call)
+
+1. Start OBS (screen + your mic + system audio).  
+2. Talk to the intake agent: say what dress you want, size, date, budget.  
+3. **Make one correction** on purpose (“ivory, not champagne”) so the agent shows it adapts.  
+4. Let the agent **recap** the details; confirm.  
+5. Add the **document step**: send/show a dress **photo or screenshot**, let the agent read it into the same details, confirm once. *(This covers a required criterion.)*  
+6. Stop OBS. **Download the ElevenLabs recording + transcript** of this call.  
+7. Send Cole: the OBS file + the ElevenLabs audio/transcript.
+
+### 3 · Cole — the SELLER (records the three negotiation calls)
+
+Do these as **three separate recordings**.
+
+1. Start OBS. Answer the agent’s outbound call.  
+2. **Call #1 — Tough but fair:** hold firm, then give ground when the agent brings a **real competing quote**. Let the **price drop** (this is the money shot). Also here: let the agent **say it’s an AI**, ask “are you a robot?”, and try **one interruption**.  
+3. **Call #2 — Won’t quote by phone:** “We only price in-store.” Make the agent get a **firm callback or a range** before you end.  
+4. **Call #3 — Upseller:** pile on rush fees / veil / alterations; let the agent **itemize and strip** them.  
+5. After each: stop OBS, **download the ElevenLabs recording + transcript**.  
+6. Keep all three OBS files + transcripts for editing.
+
+### 4 · Jagger — the TRACE screen
+
+1. Start OBS on the **trace screen** view.  
+2. Run it **in sync with Cole’s seller calls** (same scenario) so the trace matches the audio.  
+3. Capture at least the moment where the agent **pulls the competing quote and the price moves**.  
+4. Stop OBS; send Cole the trace recording (note which seller call it matches).
+
+### 5 · Suman — the engine
+
+1. Make sure each call runs cleanly and the **report/ranking** is produced at the end.  
+2. Grab a clean shot (or export) of the **final ranked result** with the price and the proof.  
+3. Send Cole the result screen + any log/transcript needed for the report-back.
+
+### 6 · Cole — edit + assemble
+
+1. Collect: Ella’s intake, Cole’s 3 seller calls, Jagger’s trace, Suman’s result screen, all ElevenLabs transcripts.  
+2. Use the **ElevenLabs recordings as the master audio**; layer screen + a simple **call-UI overlay**.  
+3. Cut the three videos: **Demo** (intake + call #1 price drop + report-back), **Tech** (seller call left + trace right), **Team**.  
+4. **Caption the price drop.** Keep everyday language.  
+5. QA: play with sound + muted; click the GitHub link logged-out; check each video ≤ 60s.
+
+### What each person hands to Cole
+
+| Person | Deliver |
+|---|---|
+| Ella | Intake OBS clip + document step + ElevenLabs audio/transcript |
+| Cole | 3 seller OBS clips + 3 transcripts |
+| Jagger | Trace screen recording (labeled per call) |
+| Suman | Final ranked-result screen + report data |
+
+### Common mistakes to avoid
+
+- ❌ Recording the Zoom window. ✅ Record your own screen locally.  
+- ❌ Forgetting the ElevenLabs recording. ✅ Download it every call — it’s the clean audio + proof.  
+- ❌ Different numbers per call. ✅ One frozen scenario everywhere.  
+- ❌ No document step. ✅ Ella does the photo/screenshot — it’s required.  
+- ❌ Two humans talking on one call. ✅ Always one human + the agent.  
+- ❌ Buzzwords on camera. ✅ Plain words.
+
+---
+
 ## Shoot order
 
 0. **Cole loads + shares ElevenLabs credits** so both voice legs work.  
