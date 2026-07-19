@@ -3,29 +3,34 @@ FastAPI surface (owner: Suman + Cole for UI wiring) — wires the modules for th
 Everything here runs on mocks with no keys, so the UI can integrate immediately.
 Estimator intake routes (owner: Jagger) cover both required intake paths — voice
 (ElevenLabs Agents) and document (§5) — converging on the same ProductSpec pipeline.
+Trace routes (owner: Jagger) feed the demo's live agent-behavior panel.
 
     uvicorn app.main:app --reload
     # then: GET /demo  ·  POST /estimate  ·  POST /search  ·  POST /negotiate
     #       GET /demo/stream  (SSE for the live ticker + transcript)
     #       POST /estimate/document  ·  POST /estimate/voice/webhook
     #       GET /estimate/voice/agent-config/{vertical}  ·  POST /estimate/confirm
+    #       GET /trace/view   (live agent-behavior panel)
+    #       GET /trace/stream (SSE feed backing that panel)  ·  GET /trace (fallback)
 """
 from __future__ import annotations
 
 import asyncio
 import base64
 import json
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from negotiator import orchestrator
 from negotiator.caller import search
 from negotiator.contracts import ProductSpec, RankedOptions
 from negotiator.estimator import confirm_spec, estimate, estimate_from_document, missing_requirements
+from negotiator.tracing import Tracer
 from negotiator.voice_intake import build_agent_config, handle_tool_call
 
 app = FastAPI(title="The Negotiator", version="0.1.0")
@@ -204,3 +209,95 @@ async def demo_stream() -> StreamingResponse:
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+_TRACE_VIEW_PATH = Path(__file__).resolve().parent / "static" / "trace.html"
+
+
+def _run_demo_traced(tracer: Tracer) -> dict:
+    tracer.emit("stage", actor="estimator", label=f'Estimator: parsing "{_DEMO_INPUT}"')
+    spec = estimate(_DEMO_INPUT)
+    tracer.emit(
+        "stage", actor="estimator",
+        label=f"ProductSpec {spec.spec_id} ready — target ${spec.negotiation.target_price:,.0f} "
+              f"/ reservation ${spec.negotiation.reservation_price:,.0f}",
+        price=spec.negotiation.target_price,
+        detail={"spec_id": spec.spec_id},
+    )
+
+    tracer.emit("stage", actor="caller", label="Caller: fanning out for comparable vendors…")
+    ranked = search(spec)
+    tracer.emit(
+        "stage", actor="caller",
+        label=f"Caller: {len(ranked.options)} ranked options found",
+        detail={"option_count": len(ranked.options)},
+    )
+
+    result = orchestrator.run(ranked, spec, tracer=tracer)
+    return {
+        "spec": spec.model_dump(by_alias=True),
+        "ranked": ranked.model_dump(),
+        "recommendation": (
+            result["recommendation"].model_dump(by_alias=True)
+            if result["recommendation"] is not None
+            else None
+        ),
+        "sessions": [s.model_dump(by_alias=True) for s in result["sessions"]],
+    }
+
+
+@app.get("/trace")
+def trace() -> dict:
+    """Fallback (non-streaming): run the full demo, return every logged agent event."""
+    tracer = Tracer()
+    payload = _run_demo_traced(tracer)
+    return {"events": [e.to_dict() for e in tracer.events()], **payload}
+
+
+@app.get("/trace/stream")
+async def trace_stream() -> StreamingResponse:
+    """SSE feed for the demo's left-screen live agent-behavior panel: one `trace`
+    event per logged TraceEvent, emitted as the orchestrator produces them (not
+    batched at the end), then `done`."""
+
+    async def events():
+        loop = asyncio.get_event_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+        tracer = Tracer()
+        tracer.subscribe(lambda evt: loop.call_soon_threadsafe(queue.put_nowait, evt))
+
+        async def run() -> None:
+            try:
+                await asyncio.to_thread(_run_demo_traced, tracer)
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
+
+        task = asyncio.create_task(run())
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield _sse("trace", event.to_dict())
+        finally:
+            await task
+
+        yield _sse("done", {})
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/trace/view")
+def trace_view() -> FileResponse:
+    """The left-screen panel itself -- a self-contained page, no build step. Open
+    this in one window and the transcript UI (ui/) in another for the dual-screen
+    demo recording."""
+    return FileResponse(_TRACE_VIEW_PATH)

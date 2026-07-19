@@ -18,6 +18,7 @@ from .comms.blackboard import Blackboard
 from .comms.channels import MockChannel
 from .comms.loop import run_negotiation
 from .contracts import NegotiationSession, Option, ProductSpec, RankedOptions, SellerState
+from .tracing import Tracer
 
 
 def _synthetic_seller_state(option: Option) -> SellerState:
@@ -38,7 +39,11 @@ def run(
     seller_states: Optional[dict[str, SellerState]] = None,
     top_n: int = 3,
     max_rounds: int = 6,
+    tracer: Optional[Tracer] = None,
 ) -> dict:
+    """`tracer`, if given, logs session spawn/outcome and the final recommendation for
+    the demo's live agent-behavior panel (see negotiator/tracing.py); each turn inside
+    a session is logged by comms/loop.run_negotiation itself."""
     seller_states = seller_states or {}
     blackboard = Blackboard()
     options = ranked.options[:top_n]
@@ -61,9 +66,49 @@ def run(
         state = seller_states.get(opt.option_id) or _synthetic_seller_state(opt)
         buyer = BuyerAgent(spec, session, max_rounds=max_rounds)
         seller = SellerAgent(state, max_rounds=max_rounds)
-        run_negotiation(buyer, MockChannel(seller), blackboard, session)
+
+        if tracer is not None:
+            tracer.emit(
+                "session_spawned",
+                actor="orchestrator",
+                session_id=session.session_id,
+                option_id=opt.option_id,
+                vendor=opt.vendor,
+                label=f"Spawning negotiation vs {opt.vendor} (list ${opt.listed_price:,.0f})",
+                price=opt.listed_price,
+                detail={"batna_utility": batna, "match_score": opt.match_score},
+            )
+
+        run_negotiation(buyer, MockChannel(seller), blackboard, session, tracer=tracer)
         sessions.append(session)
+
+        if tracer is not None:
+            tracer.emit(
+                "session_end",
+                actor="orchestrator",
+                session_id=session.session_id,
+                option_id=opt.option_id,
+                vendor=opt.vendor,
+                label=f"{opt.vendor}: {session.status}"
+                + (f" at ${session.current_price:,.0f}" if session.current_price is not None else ""),
+                price=session.current_price,
+                detail={"status": session.status},
+            )
 
     closed = [s for s in sessions if s.status == "agreed" and s.current_price is not None]
     best = min(closed, key=lambda s: s.current_price) if closed else None
+
+    if tracer is not None:
+        vendor = next((o.vendor for o in options if o.option_id == best.option_id), None) if best else None
+        tracer.emit(
+            "recommendation",
+            actor="orchestrator",
+            session_id=best.session_id if best else None,
+            option_id=best.option_id if best else None,
+            vendor=vendor,
+            label=(f"Recommendation: {vendor} at ${best.current_price:,.0f}" if best
+                   else "No deal cleared all constraints"),
+            price=best.current_price if best else None,
+        )
+
     return {"recommendation": best, "sessions": sessions}

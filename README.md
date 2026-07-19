@@ -134,12 +134,17 @@ cp .env.example .env               # fill keys when wiring the real modules
 python run_demo.py                 # end-to-end MOCK — watch the price move (no keys needed)
 pytest -q                          # value-model + negotiation + caller + guard checks
 uvicorn app.main:app --reload      # API for the demo UI  →  GET /demo · GET /demo/stream
+                                    # left-screen agent trace →  GET /trace/view
 
-# Demo UI (separate terminal)
+# Demo UI (separate terminal) — the dual-screen demo's RIGHT screen (transcript)
 cd ui && npm install && npm run dev   # → http://localhost:3000
 ```
 
 `run_demo.py` runs intake → search → parallel negotiations → ranked recommendation entirely on mocks, printing a genuinely moving price per session. Start any module by stubbing its output to the [`contracts.py`](negotiator/contracts.py) shape — downstream owners integrate against you before your logic is done.
+
+### Dual-screen demo: the left screen (live agent trace)
+
+`GET /trace/view` (served straight off `uvicorn`, no build step) is the **left** screen of the recorded demo — live agent-behavior visualization, distinct from the **right** screen's conversation transcript (`ui/`). It renders `negotiator/tracing.py`'s event log in real time over SSE (`GET /trace/stream`; `GET /trace` is the non-streaming fallback): session-spawn, every buyer/seller turn with its rationale, guard interventions, session outcomes, and the final recommendation. `orchestrator.run(..., tracer=...)` and `comms/loop.run_negotiation(..., tracer=...)` both take an optional `tracer` — omit it and nothing changes, so this never touches existing negotiation behavior.
 
 ## Team & roles
 
@@ -153,6 +158,7 @@ cd ui && npm install && npm run dev   # → http://localhost:3000
 | Seller Agent + seller value model | **Ella** |
 | Honesty + anti-injection guard (`guard.py`) | **Cole** |
 | Demo UI (`ui/`) | **Cole** |
+| Event tracing + live agent-trace panel (`tracing.py`, `/trace/view`) | **Jagger** |
 
 See the [Linear project](https://linear.app/citable/project/the-negotiator-hack-nation-elevenlabs-5adf25d81103) for the live task board.
 
