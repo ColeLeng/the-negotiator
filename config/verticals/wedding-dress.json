@@ -2,48 +2,107 @@
   "vertical": "wedding-dress",
   "displayName": "Wedding Dress (DTC)",
   "market": "DTC",
-  "description": "Customized, one-time, high-emotion purchase. Opaque prices, plentiful alternatives, zero buyer leverage and zero time. The buyer describes what she wants once; the agents shop and haggle.",
+  "description": "Customized, one-time, high-emotion purchase. Opaque prices, plentiful alternatives, zero buyer leverage and zero time. The buyer describes what she wants once; the agents shop and haggle across channels (boutique / sample sale / resale / DTC).",
+  "narrowedScenario": {
+    "id": "made_to_order_vs_sample_and_resale",
+    "summary": "Bride, US 8, wedding ~4 months out (too tight for 6-9mo custom). Wants a specific designer look. Agents gather comparable gowns across three channels that genuinely haggle (boutique floor-sample / sample sale, preowned resale, DTC made-to-order), then negotiate price + strip alterations/add-ons against a real cross-channel BATNA.",
+    "whyThisScenario": [
+      "Opaque pricing: boutiques rarely quote over the phone, so the 'stonewaller' style is real and demoable (extract a range or a firm callback).",
+      "Real comparables: the same/near-identical gown exists across boutique, sample sale, resale and DTC, so the BATNA is honest and clickable.",
+      "Deadline pressure: a ~4-month date rules out 6-9mo custom and makes lead-time-vs-date a live negotiation lever.",
+      "Hidden-fee stack: alterations ($150-$700+, ~20-30% of gown price) and rush fees are a concrete red flag the agent itemizes and strips."
+    ],
+    "recommendedDemoTarget": "dress_made_to_order",
+    "buyerPersona": {
+      "size": "US 8",
+      "deadlineDays": 120,
+      "target_price": 1200,
+      "reservation_price": 1900,
+      "walkaway_price": 2300,
+      "note": "Target ~ off-the-rack/made-to-order low tier; reservation ~ made-to-order median; walkaway ~ regional high-cost median."
+    }
+  },
   "specFields": [
     { "key": "silhouette", "type": "enum", "values": ["A-line", "ball-gown", "mermaid", "sheath", "fit-and-flare", "trumpet"], "prompt": "What silhouette are you looking for?" },
     { "key": "color", "type": "enum", "values": ["white", "ivory", "champagne", "blush", "off-white"], "prompt": "What color?" },
-    { "key": "size", "type": "string", "prompt": "What dress size (US)?" },
+    { "key": "size", "type": "string", "constraint": "hard", "prompt": "What dress size (US)?" },
+    { "key": "wedding_date", "type": "date", "constraint": "hard", "prompt": "When is the wedding? (drives the lead-time hard constraint)" },
+    { "key": "acquisition_channel", "type": "enum", "values": ["off_the_rack", "made_to_order", "custom", "sample_sale", "resale"], "required": false, "prompt": "Open to sample-sale or preowned to save, or new-only?" },
     { "key": "fabric", "type": "string", "required": false, "prompt": "Any fabric preference (satin, lace, tulle, crepe)?" },
     { "key": "sleeve", "type": "string", "required": false, "prompt": "Sleeve style (strapless, long sleeve, cap, off-shoulder)?" },
     { "key": "neckline", "type": "string", "required": false, "prompt": "Neckline (sweetheart, V-neck, halter, square)?" },
+    { "key": "designer", "type": "string", "required": false, "prompt": "A specific designer/style in mind (e.g. Pronovias, Maggie Sottero)?" },
     { "key": "customization", "type": "string", "required": false, "prompt": "Any customization (custom measurements, added sleeves, color change)?" }
   ],
   "priceBenchmark": {
-    "source": "aggregated bridal marketplace + boutique listings",
+    "source": "The Knot 2026 Real Weddings Study (10,474 US couples, $2,100 avg gown); Zola 2026 ($2,250); dreamdresses 2026 channel breakdown; Stillwhite/Nearly Newlywed resale 2026.",
     "currency": "USD",
-    "median": 1100,
-    "p25": 650,
-    "p75": 1900,
-    "note": "Ground truth for red-flag detection. Replace with a live benchmark feed for production."
+    "median": 2100,
+    "p25": 1200,
+    "p75": 2500,
+    "note": "Blended national average across channels. Use the per-channel subtype bands below for red-flag detection; the blended median is only a fallback.",
+    "byChannel": {
+      "dress_resale":        { "low": 250,  "median": 700,  "high": 2500,  "target": 525,  "reservation": 735,  "walkaway": 840,  "source": "Stillwhite (102k+ listings) / Nearly Newlywed 2026; 50-80% of retail" },
+      "dress_sample_sale":   { "low": 300,  "median": 900,  "high": 2000,  "target": 675,  "reservation": 945,  "walkaway": 1080, "source": "Bridal sample-sale events 2026 ($299-$1,999); 30-70% off" },
+      "dress_off_the_rack":  { "low": 500,  "median": 1500, "high": 3500,  "target": 1125, "reservation": 1575, "walkaway": 1800, "source": "dreamdresses 2026; The Knot low tier $1,200" },
+      "dress_made_to_order": { "low": 1200, "median": 2100, "high": 5000,  "target": 1575, "reservation": 2205, "walkaway": 2520, "source": "The Knot 2026 ($2,100); Zola 2026 ($2,250)" },
+      "dress_custom":        { "low": 2000, "median": 4000, "high": 15000, "target": 3000, "reservation": 4200, "walkaway": 4800, "source": "The Knot custom cost 2026 ($3,000-$4,000 start); 19% of brides" }
+    }
+  },
+  "leadTime": {
+    "source": "Flares Bridal 2026; dreamdresses 2026",
+    "note": "Wedding date is a HARD constraint. Made-to-order production is the longest single stage; alterations need a buffer on top.",
+    "endToEndMonths": { "typical": [9, 12] },
+    "productionMonthsByChannel": {
+      "dress_resale": [0, 1],
+      "dress_sample_sale": [0, 1],
+      "dress_off_the_rack": [0, 6],
+      "dress_made_to_order": [4, 6],
+      "dress_custom": [6, 9]
+    },
+    "alterationsBufferWeeks": [8, 10],
+    "rushThresholdWeeks": 3
   },
   "redFlags": [
-    { "rule": "below_market", "thresholdPct": 30, "message": "Quote is 30%+ below the median — verify authenticity, fabric quality, real photos, sizing accuracy, and return policy before trusting. Common in dropship knock-offs." },
-    { "rule": "no_returns", "message": "No returns / final sale on a made-to-order gown magnifies sizing risk — flag it." },
-    { "rule": "vague_lead_time", "message": "Lead time unstated or 'it depends' — pin down a firm ship-by date against the wedding date." }
+    { "rule": "wedding_tax_markup", "direction": "above", "thresholdPct": 25, "severity": "warning", "message": "Quote is 25%+ above the channel median — possible 'wedding markup'. 28% of vendors quote higher when 'wedding' is mentioned vs an identical non-wedding event (Consumer Reports 2016, 40 vendors, 12 states; markups commonly 20-50%).", "source": "Consumer Reports 2016 wedding-tax study" },
+    { "rule": "alterations_and_addon_stack", "direction": "above", "thresholdPct": 30, "severity": "warning", "message": "Total is inflated by alterations/veil/rush/preservation baked in. Alterations run $150-$700 typical (~20-30% of the gown, $700-$1,500+ on beaded gowns); rush fees add $25+/service under ~3 weeks. Itemize and strip; an independent seamstress is often cheaper for equal work.", "source": "The Knot / Zola / RobeMarie / Alteration Specialists 2026" },
+    { "rule": "sight_unseen_resale_lowball", "direction": "below", "thresholdPct": 30, "severity": "warning", "message": "Resale/DTC quote 30%+ below channel median — verify authenticity, real photos, exact measurements, condition, and return policy before trusting. Common in dropship knock-offs and misrepresented listings.", "source": "Stillwhite/Nearly Newlywed buyer guidance 2026" },
+    { "rule": "no_returns_final_sale", "severity": "warning", "message": "No returns / final sale on a made-to-order or resale gown magnifies sizing and misrepresentation risk — flag it and require exact measurements or a return window (e.g. Nearly Newlywed offers a 5-day return for a $50 fee)." },
+    { "rule": "vague_lead_time", "severity": "block", "message": "Lead time unstated or 'it depends' against a firm wedding date — pin down a firm ship-by that leaves an 8-10 week alterations buffer, or walk. Production alone runs 4-8 months for made-to-order." }
   ],
   "negotiationLevers": [
-    "competing_quote",
-    "bundle_veil_or_alterations",
-    "cash_or_prepay",
-    "off_season_timing",
-    "floor_sample_or_sample_sale",
-    "price_match",
-    "free_or_discounted_shipping"
+    { "id": "floor_sample_or_sample_sale", "typicalPctSwing": 50, "description": "Buy the tried-on sample / sample-sale gown: 30-70% off retail. Biggest single lever." },
+    { "id": "strip_alterations_addons", "typicalPctSwing": 25, "description": "Decline in-house alterations/veil/rush; use an independent seamstress — removes 20-30% of the total." },
+    { "id": "competing_channel_quote", "typicalPctSwing": 20, "description": "A real resale/DTC/other-boutique quote on the same or comparable gown is honest BATNA leverage worth ~15-25%." },
+    { "id": "off_season_or_weekday_pickup", "typicalPctSwing": 15, "description": "Off-peak buying (non-May/Oct, slow-season boutique) is 10-20% softer." },
+    { "id": "cash_or_prepay", "typicalPctSwing": 10, "description": "Cash / full prepay vs deposit + card — 5-15% on slower-moving inventory." },
+    { "id": "free_shipping_or_price_match", "typicalPctSwing": 5, "description": "Free/discounted shipping or a written price-match on a listed gown." }
   ],
+  "negotiationNorms": {
+    "source": "Consumer Reports 2016; Lifehacker; industry guidance 2026",
+    "notes": [
+      "Haggling a brand-new full-price boutique gown is uncommon and often rebuffed; leverage lives in channel choice (sample/resale/DTC) and in stripping add-ons, not in demanding a raw discount on a new gown.",
+      "Sample sales: 30-70% off (display models; expect minor wear + immediate alterations).",
+      "Trunk shows: typically 10-20% off, sometimes 0.",
+      "Deposits are standard; made-to-order is usually final sale.",
+      "Always get an itemized, all-in quote in writing (gown + alterations + rush + shipping)."
+    ]
+  },
   "callListSource": {
     "provider": "google_places",
     "query": "bridal boutique OR wedding dress shop",
     "filters": { "minRating": 4.0, "radiusKm": 40 },
-    "note": "Also supports direct-to-consumer online sellers via their listed customer-service lines."
+    "note": "Boutiques + David's Bridal for phone/voice legs. Also DTC online sellers (Azazie, Lulus) via customer-service lines, and resale marketplaces (Stillwhite, Nearly Newlywed, Kleinfeld Again) where individual sellers message and genuinely haggle."
   },
+  "channels": [
+    { "id": "boutique", "type": "voice", "examples": ["local bridal boutiques", "David's Bridal"], "note": "Appointment-gated; often refuses phone pricing → target for the stonewaller demo." },
+    { "id": "dtc_online", "type": "voice_or_web", "examples": ["Azazie (most < $300, at-home try-on 3 for $15)", "Lulus", "ASOS"], "note": "Fast, cheap made-to-order substitutes; strong BATNA floor." },
+    { "id": "resale", "type": "ucp_or_web", "examples": ["Stillwhite (102k+ listings, PayPal protection)", "Nearly Newlywed (up to 90% off, 5-day return $50)", "Kleinfeld Again (authenticated samples)"], "note": "Individual sellers haggle directly → best 'real moving price' leg." }
+  ],
   "counterpartyStyles": [
     { "id": "tough_negotiator", "description": "Holds firm on price, pushes deposits, tests whether the buyer is serious." },
     { "id": "stonewaller_no_prices_by_phone", "description": "'We only give pricing after an in-store appointment' — must extract a range or a firm callback." },
-    { "id": "hard_sell_upseller", "description": "Bundles alterations, veils, rush fees; inflates the total. Agent must itemize and strip non-essentials." }
+    { "id": "hard_sell_upseller", "description": "Bundles alterations, veils, rush fees, preservation; inflates the total. Agent must itemize and strip non-essentials." }
   ],
   "disclosure": "Hi, this is an AI assistant calling on behalf of a customer who's shopping for a wedding dress. Happy to say up front that I'm an AI — I'm just gathering some pricing and availability. Is now an okay time for a couple of quick questions?"
 }

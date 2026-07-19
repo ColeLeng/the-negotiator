@@ -211,12 +211,47 @@ _WEDDING = VerticalConfig(
             target_price=490, reservation_price=685, walkaway_price=780,
             source="The Knot 2026 Real Weddings Study",
         ),
-        # Wedding dress industry 2026: median off-the-rack $1,600
-        "dress": PriceBenchmark(
-            subtype="dress",
-            market_low=800, market_median=1600, market_high=4500,
-            target_price=1200, reservation_price=1680, walkaway_price=1920,
-            source="Wedding dress industry report 2026",
+        # --- Wedding dress, split by acquisition channel (narrowed scenario) ---
+        # Each channel is a genuinely different market with its own median, so
+        # the Caller's cross-channel spread is where the honest BATNA comes from.
+        # National blended average is ~$2,100 (The Knot 2026 Real Weddings Study,
+        # 10,474 US couples married 2025); Zola 2026 puts it at ~$2,250. We break
+        # that blend into the five channels a buyer can actually be quoted in.
+        #
+        # RESALE: preowned/used designer gowns, 50-90% off retail.
+        "dress_resale": PriceBenchmark(
+            subtype="dress_resale",
+            market_low=250, market_median=700, market_high=2500,
+            target_price=525, reservation_price=735, walkaway_price=840,
+            source="Stillwhite (102k+ listings) / Nearly Newlywed 2026 - resale 50-80% of retail",
+        ),
+        # SAMPLE SALE: boutique floor samples, 30-70% off; events priced $299-$1,999.
+        "dress_sample_sale": PriceBenchmark(
+            subtype="dress_sample_sale",
+            market_low=300, market_median=900, market_high=2000,
+            target_price=675, reservation_price=945, walkaway_price=1080,
+            source="Bridal sample-sale events 2026 (e.g. $299-$1,999) - industry 30-70% off",
+        ),
+        # OFF-THE-RACK: in-stock boutique gown, starting ~$500; true total $700-$4,300.
+        "dress_off_the_rack": PriceBenchmark(
+            subtype="dress_off_the_rack",
+            market_low=500, market_median=1500, market_high=3500,
+            target_price=1125, reservation_price=1575, walkaway_price=1800,
+            source="dreamdresses 2026 off-the-rack vs custom - The Knot low tier $1,200",
+        ),
+        # MADE-TO-ORDER: designer pattern cut to measurements; the modal purchase.
+        "dress_made_to_order": PriceBenchmark(
+            subtype="dress_made_to_order",
+            market_low=1200, market_median=2100, market_high=5000,
+            target_price=1575, reservation_price=2205, walkaway_price=2520,
+            source="The Knot 2026 Real Weddings Study ($2,100 avg) - Zola 2026 ($2,250)",
+        ),
+        # CUSTOM / BESPOKE: atelier build; only 19% of brides go fully custom.
+        "dress_custom": PriceBenchmark(
+            subtype="dress_custom",
+            market_low=2000, market_median=4000, market_high=15000,
+            target_price=3000, reservation_price=4200, walkaway_price=4800,
+            source="The Knot custom wedding dress cost 2026 ($3,000-$4,000 start)",
         ),
     },
     red_flags=[
@@ -242,16 +277,37 @@ _WEDDING = VerticalConfig(
             ),
             source="industry aggregate - FMCSA pattern applied to wedding vertical",
         ),
+        RedFlagRule(
+            name="alterations_and_addon_stack",
+            direction="above", threshold=HIDDEN_FEE_STACK,
+            severity="warning",
+            evidence=(
+                "Wedding-dress totals balloon after the sticker: alterations run "
+                "$150-$700 typical (rule of thumb 20-30% of the gown price; "
+                "$700-$1,500+ on beaded/structured gowns), rush fees add $25+/"
+                "service under ~3 weeks, plus veil/steaming/preservation upsells. "
+                "A gown quoted with these baked in can read 30%+ over the bare "
+                "gown median -- itemize and strip before comparing."
+            ),
+            source="The Knot / Zola / RobeMarie / Alteration Specialists 2026",
+        ),
     ],
     levers=[
-        NegotiationLever("weekday_or_off_season", 0.20,
-            "Non-Saturday, non-May/October dates typically 15-25% cheaper"),
-        NegotiationLever("package_bundling", 0.12,
-            "Photo + video, or venue + catering -- bundle discount 8-15%"),
-        NegotiationLever("hours_reduction", 0.10,
-            "Trim coverage hours; often better ROI than raw price cut"),
-        NegotiationLever("payment_terms", 0.05,
-            "Cash / net-0 vs credit card / installment"),
+        # Ordered cheapest-to-concede first, tuned for the dress scenario.
+        NegotiationLever("floor_sample_or_sample_sale", 0.50,
+            "Buy the tried-on sample / sample-sale gown: 30-70% off retail"),
+        NegotiationLever("strip_alterations_addons", 0.25,
+            "Decline in-house alterations/veil/rush; use independent seamstress "
+            "(often cheaper for equal work) -- removes 20-30% of the total"),
+        NegotiationLever("competing_channel_quote", 0.20,
+            "Real resale / DTC / other-boutique quote on the same or comparable "
+            "gown is honest BATNA leverage worth ~15-25%"),
+        NegotiationLever("off_season_or_weekday_pickup", 0.15,
+            "Off-peak buying (non-May/Oct, slow-season boutique) 10-20% softer"),
+        NegotiationLever("cash_or_prepay", 0.10,
+            "Cash / full prepay vs deposit + card -- 5-15% on slower inventory"),
+        NegotiationLever("free_shipping_or_price_match", 0.05,
+            "Free/discounted shipping or a written price-match on a listed gown"),
     ],
     batna_guidance=BatnaGuidance(
         min_quotes=MIN_QUOTES_FOR_BATNA,
