@@ -43,11 +43,17 @@ def build_agent_config(vertical: str, with_tool: bool = True) -> dict:
         f["key"] for f in fields
         if f.get("type") != "date" and f.get("constraint", "hard" if f.get("required", True) else "soft") == "soft"
     ]
+    # Exclude date-type fields: we only need a rough timeline (handled by the dedicated
+    # timeline line + data collection), so the agent must NOT treat an exact wedding date
+    # as a required must-have (that caused an exact-date question loop).
     hard_keys = [
         f["key"] for f in fields
-        if f.get("constraint", "hard" if f.get("required", True) else "soft") == "hard"
+        if f.get("type") != "date"
+        and f.get("constraint", "hard" if f.get("required", True) else "soft") == "hard"
     ]
-    questions = "\n".join(f"- {f['key']}: {f['prompt']}" for f in fields)
+    questions = "\n".join(
+        f"- {f['key']}: {f['prompt']}" for f in fields if f.get("type") != "date"
+    )
     system_prompt = (
         f"You are a warm, efficient personal shopping assistant helping a buyer describe "
         f"a {vcfg.get('displayName', vertical)} purchase before any vendor is contacted. "
