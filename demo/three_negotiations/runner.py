@@ -1,31 +1,52 @@
 """
 demo/three_negotiations/runner.py
 
-Runs the three rehearsal calls against the REAL negotiator pipeline. See README.md
-for exactly what's real vs. scripted per scenario -- the short version: BuyerAgent,
+Runs the three rehearsal calls against the REAL negotiator pipeline -- not just the
+negotiation loop, but the full required loop from the brief: intake -> calls ->
+negotiation -> ranked recommendation. See README.md for exactly what's real vs.
+scripted per scenario -- the short version: estimate(), search(), BuyerAgent,
 Blackboard, guard_outbound, and Tracer are always the real, unmodified objects; only
-the seller's lines are scripted.
+the seller's lines (standing in for Cole's voice) are scripted.
 """
 from __future__ import annotations
 
 from typing import Optional
 
 from negotiator.agents.buyer_agent import BuyerAgent
+from negotiator.caller import search
 from negotiator.comms.blackboard import Blackboard
 from negotiator.comms.loop import run_negotiation
-from negotiator.contracts import Negotiation, NegotiationSession, ProductSpec, buyer_msg
+from negotiator.contracts import NegotiationSession, ProductSpec, buyer_msg
+from negotiator.estimator import estimate
 from negotiator.guard import guard_outbound
 from negotiator.tracing import Tracer
 
 from .scenarios import SCENARIOS_ORDER, Scenario, ScriptedSellerChannel, UPSELLER_ADDONS, build_scenarios
 
+_INTAKE_TEXT = "Ivory Pronovias wedding dress, US 8, ideally under $1800, hard cap $2400, within 30 days."
 
-def _spec() -> ProductSpec:
-    return ProductSpec(
-        spec_id="spec_three_negotiations",
-        category="Wedding Dress (DTC)",
-        negotiation=Negotiation(target_price=1800.0, reservation_price=2400.0, deadline_days=120),
-    )
+
+def _spec(tracer: Optional[Tracer]) -> ProductSpec:
+    """The real Estimator -> real Caller, exactly like the main /demo pipeline --
+    the ProductSpec these three calls negotiate against is not hand-written."""
+    if tracer is not None:
+        tracer.emit("stage", actor="estimator", label=f'Estimator: parsing "{_INTAKE_TEXT}"')
+    spec = estimate(_INTAKE_TEXT)
+    if tracer is not None:
+        tracer.emit(
+            "stage", actor="estimator",
+            label=f"ProductSpec {spec.spec_id} confirmed -- target ${spec.negotiation.target_price:,.0f} "
+                  f"/ reservation ${spec.negotiation.reservation_price:,.0f}",
+            price=spec.negotiation.target_price, detail={"spec_id": spec.spec_id},
+        )
+        tracer.emit("stage", actor="caller", label="Caller: fanning out for comparable vendors…")
+    ranked = search(spec)
+    if tracer is not None:
+        tracer.emit(
+            "stage", actor="caller", label=f"Caller: {len(ranked.options)} ranked options found",
+            detail={"option_count": len(ranked.options)},
+        )
+    return spec
 
 
 def _run_tough_but_fair(
@@ -183,7 +204,7 @@ def _checklist(style_id: str, session: NegotiationSession, extra: dict) -> dict:
 
 def run_all(tracer: Optional[Tracer] = None, max_rounds: int = 6) -> dict:
     """Run all three rehearsal calls in order; return {style_id: {session, checklist}}."""
-    spec = _spec()
+    spec = _spec(tracer)
     scenarios = build_scenarios()
     blackboard = Blackboard()
 
@@ -236,5 +257,26 @@ def run_all(tracer: Optional[Tracer] = None, max_rounds: int = 6) -> dict:
             )
 
         results[style_id] = {"session": session, "checklist": checklist}
+
+    # Final ranked recommendation, mirroring orchestrator.run(): the best CLOSED
+    # deal among the three calls (an "agreed" outcome is the only kind with a firm
+    # price to rank; the stonewaller call ends in a callback, not a price).
+    closed = [
+        (style_id, r["session"]) for style_id, r in results.items()
+        if r["session"].status == "agreed" and r["session"].current_price is not None
+    ]
+    if tracer is not None:
+        if closed:
+            best_style, best_session = min(closed, key=lambda pair: pair[1].current_price)
+            tracer.emit(
+                "recommendation", actor="orchestrator", session_id=best_session.session_id,
+                label=f'Recommendation: "{scenarios[best_style].title}" at ${best_session.current_price:,.0f}',
+                price=best_session.current_price, detail={"style": best_style},
+            )
+        else:
+            tracer.emit(
+                "recommendation", actor="orchestrator",
+                label="No call closed on a firm price -- follow up on the callback commitment.",
+            )
 
     return results

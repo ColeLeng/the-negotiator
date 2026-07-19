@@ -100,11 +100,33 @@ class TestUpseller:
 
 class TestTracingIntegration:
 
-    def test_every_event_is_tagged_with_its_style(self):
+    def test_every_per_call_event_is_tagged_with_its_style(self):
+        """`stage` (estimator/caller) and the final `recommendation` are pipeline-wide,
+        not tied to one call, so they're the only kinds allowed to skip the tag."""
         tracer = Tracer()
         run_all(tracer=tracer)
-        untagged = [e for e in tracer.events() if e.kind not in ("call_start",) and "style" not in e.detail]
+        untagged = [
+            e for e in tracer.events()
+            if e.kind not in ("call_start", "stage", "recommendation") and "style" not in e.detail
+        ]
         assert untagged == [], f"events missing a style tag: {[e.kind for e in untagged]}"
+
+    def test_pipeline_wide_stages_run_before_any_call(self):
+        """estimate() and search() are the real intake/caller stages the brief
+        requires -- they must run once, before the three calls, not per call."""
+        tracer = Tracer()
+        run_all(tracer=tracer)
+        kinds = [e.kind for e in tracer.events()]
+        stage_events = [e for e in tracer.events() if e.kind == "stage"]
+        assert {e.actor for e in stage_events} == {"estimator", "caller"}
+        assert kinds.index("call_start") > kinds.index("stage")
+
+    def test_ends_with_one_recommendation_event(self):
+        tracer = Tracer()
+        run_all(tracer=tracer)
+        recs = [e for e in tracer.events() if e.kind == "recommendation"]
+        assert len(recs) == 1
+        assert recs[-1] is tracer.events()[-1], "recommendation must be the final event"
 
     def test_call_start_and_call_end_bracket_each_scenario(self):
         tracer = Tracer()

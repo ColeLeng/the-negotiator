@@ -16,9 +16,14 @@
     --gridline:    #2c2c2a;
     --border:      rgba(255,255,255,0.14);
 
-    --buyer:  #3987e5;
-    --seller: #d95926;
-    --lever:  #9085e9;
+    --estimator:      #3987e5;
+    --caller:         #199e70;
+    --orchestrator:   #9085e9;
+    --buyer:          #3987e5;
+    --seller:         #d95926;
+    --guard:          #e66767;
+    --blackboard:     #c98500;
+    --recommendation: #0ca30c;
 
     --good:     #0ca30c;
     --warning:  #fab219;
@@ -35,9 +40,15 @@
       --muted:       #898781;
       --gridline:    #e1e0d9;
       --border:      rgba(11,11,11,0.14);
-      --buyer:  #2a78d6;
-      --seller: #eb6834;
-      --lever:  #4a3aa7;
+
+      --estimator:      #2a78d6;
+      --caller:         #1baf7a;
+      --orchestrator:   #4a3aa7;
+      --buyer:          #2a78d6;
+      --seller:         #eb6834;
+      --guard:          #e34948;
+      --blackboard:     #eda100;
+      --recommendation: #0ca30c;
     }
   }
 
@@ -60,7 +71,7 @@
   }
   .pill .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--muted); }
   .pill.live .dot { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
-  .pill.done .dot { background: var(--buyer); }
+  .pill.done .dot { background: var(--estimator); }
   .pill.error .dot { background: var(--critical); }
   button.reconnect {
     margin-left: auto; background: var(--surface-2); color: var(--text-1);
@@ -74,15 +85,17 @@
     padding: 12px 16px 14px; min-height: 0;
   }
 
-  /* -------- call indicator -------- */
-  #call-indicator {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  .section-label {
+    color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
   }
+
+  /* -------- call indicator -------- */
+  #call-indicator { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   #call-indicator .n { font-size: 11px; color: var(--muted); }
   #call-indicator .title { font-size: 17px; font-weight: 700; }
   #call-indicator .proves {
-    font-size: 10.5px; color: var(--lever);
-    border: 1px solid color-mix(in srgb, var(--lever) 45%, transparent);
+    font-size: 10.5px; color: var(--orchestrator);
+    border: 1px solid color-mix(in srgb, var(--orchestrator) 45%, transparent);
     border-radius: 6px; padding: 2px 8px;
   }
   #call-tabs { margin-left: auto; display: flex; gap: 6px; }
@@ -93,38 +106,33 @@
   .call-tab.active { color: var(--text-1); border-color: var(--text-1); }
   .call-tab.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, transparent); }
 
-  /* -------- one unified diagram, icon-forward, minimal text -------- */
+  /* -------- one unified, full-pipeline architecture diagram -------- */
   #diagram-wrap {
     position: relative;
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-    min-height: 0; display: flex; flex-direction: column;
+    padding: 10px 14px 14px; min-height: 0; display: flex; flex-direction: column;
   }
-  #diagram-canvas { position: relative; flex: 1; min-height: 260px; }
+  #diagram-canvas { position: relative; flex: 1; min-height: 280px; }
   #diagram-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   .node {
     position: absolute;
-    border: 2px solid var(--border);
-    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
     background: var(--surface-2);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 4px;
-    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease, transform 150ms ease;
+    padding: 8px 10px;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
   }
-  .node .glyph { font-size: 26px; line-height: 1; }
-  .node .label { font-size: 12px; font-weight: 700; letter-spacing: 0.01em; }
+  .node .title { font-size: 12px; font-weight: 600; color: var(--text-1); }
+  .node .subtitle { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
   .node.pulse {
     border-color: var(--node-color, var(--text-1));
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--node-color, var(--text-1)) 22%, transparent);
-    background: color-mix(in srgb, var(--node-color, var(--text-1)) 16%, var(--surface-2));
-    transform: scale(1.04);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-color, var(--text-1)) 30%, transparent);
+    background: color-mix(in srgb, var(--node-color, var(--text-1)) 12%, var(--surface-2));
   }
 
   /* -------- calls summary strip -------- */
   #calls-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .call-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-    padding: 8px 12px;
-  }
+  .call-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
   .call-card.active { border-color: var(--text-1); }
   .call-card .name { font-size: 11.5px; font-weight: 700; }
   .call-card .checks { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
@@ -162,7 +170,10 @@
       <div id="call-tabs"></div>
     </div>
 
-    <div id="diagram-wrap"><div id="diagram-canvas"></div></div>
+    <div id="diagram-wrap">
+      <div class="section-label">Architecture</div>
+      <div id="diagram-canvas"></div>
+    </div>
 
     <div id="calls-strip"></div>
 
@@ -174,10 +185,9 @@
   </main>
 
   <script>
-    // One shared diagram for all three calls: the negotiation loop itself never
-    // changes shape between styles, only which lines get spoken and how the
-    // seller (Cole) plays it -- so one diagram, lighting up per event, is the
-    // honest representation (not three copies of the same four boxes).
+    // One diagram for the WHOLE required loop (intake -> calls -> negotiation ->
+    // recommendation), not just the negotiation step -- the same shape as the
+    // main /trace/view panel, so a viewer sees the full system, not a fragment.
     const STYLE_ORDER = ["tough_but_fair", "stonewaller", "upseller"];
     const STYLE_META = {
       tough_but_fair: { title: "Tough but fair", proves: "Price moves during the call" },
@@ -195,15 +205,25 @@
     };
 
     const NODES = [
-      { id: "buyer",      glyph: "🧑‍💼", label: "Buyer Agent", x: 4,  y: 30, w: 20, h: 40, color: "--buyer" },
-      { id: "guard",      glyph: "🛡️", label: "Guard",       x: 30, y: 8,  w: 18, h: 30, color: "--lever" },
-      { id: "seller",     glyph: "☎️", label: "Seller",      x: 55, y: 30, w: 20, h: 40, color: "--seller" },
-      { id: "blackboard", glyph: "📋", label: "Blackboard",  x: 30, y: 66, w: 18, h: 26, color: "--lever" },
+      { id: "estimator",      title: "Estimator",      subtitle: "text → ProductSpec",     x: 2,  y: 4,  w: 16, color: "--estimator" },
+      { id: "caller",         title: "Caller",         subtitle: "search → RankedOptions",  x: 20, y: 4,  w: 16, color: "--caller" },
+      { id: "orchestrator",   title: "Orchestrator",   subtitle: "runs each call",          x: 38, y: 4,  w: 18, color: "--orchestrator" },
+      { id: "recommendation", title: "Recommendation", subtitle: "best closed deal",        x: 80, y: 4,  w: 18, color: "--recommendation" },
+
+      { id: "guard",  title: "Guard",       subtitle: "honesty + anti-injection", x: 38, y: 42, w: 16, color: "--guard" },
+      { id: "buyer",  title: "Buyer Agent", subtitle: "maximize utility",         x: 56, y: 42, w: 16, color: "--buyer" },
+      { id: "seller", title: "Seller",      subtitle: "Cole's voice, scripted",   x: 75, y: 42, w: 18, color: "--seller" },
+
+      { id: "blackboard", title: "Blackboard", subtitle: "shared live BATNA", x: 56, y: 76, w: 16, color: "--blackboard" },
     ];
     const EDGES = [
-      ["buyer", "guard"],
-      ["guard", "seller"],
+      ["estimator", "caller"],
+      ["caller", "orchestrator"],
+      ["orchestrator", "guard"],
+      ["guard", "buyer"],
+      ["buyer", "seller", true],
       ["buyer", "blackboard", true, true], // bidirectional, dashed
+      ["orchestrator", "recommendation"],
     ];
 
     const canvas = document.getElementById("diagram-canvas");
@@ -220,16 +240,25 @@
       const byId = Object.fromEntries(NODES.map((n) => [n.id, n]));
       for (const [fromId, toId, bidir, dashed] of EDGES) {
         const a = byId[fromId], b = byId[toId];
-        const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
-        const bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+        const ax = a.x + a.w, ay = a.y + 4.5;
+        const bx = b.x, by = b.y + 4.5;
+        const sameRow = Math.abs(a.y - b.y) < 1;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", `M ${ac.x} ${ac.y} L ${bc.x} ${bc.y}`);
+        let d;
+        if (sameRow) {
+          d = `M ${ax} ${ay} L ${bx} ${by}`;
+        } else {
+          const midY = (ay + by) / 2;
+          const cx = a.x + a.w / 2;
+          d = `M ${cx} ${a.y + 9} L ${cx} ${midY} L ${b.x + b.w / 2} ${midY} L ${b.x + b.w / 2} ${b.y}`;
+        }
+        path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", "var(--gridline)");
-        path.setAttribute("stroke-width", "0.6");
+        path.setAttribute("stroke-width", "0.5");
         path.setAttribute("marker-end", "url(#arrow)");
         if (bidir) path.setAttribute("marker-start", "url(#arrow)");
-        if (dashed) path.setAttribute("stroke-dasharray", "1.8,1.5");
+        if (dashed) path.setAttribute("stroke-dasharray", "1.6,1.4");
         svg.appendChild(path);
       }
       canvas.appendChild(svg);
@@ -238,8 +267,8 @@
         const el = document.createElement("div");
         el.className = "node";
         el.style.setProperty("--node-color", `var(${n.color})`);
-        Object.assign(el.style, { left: n.x + "%", top: n.y + "%", width: n.w + "%", height: n.h + "%" });
-        el.innerHTML = `<div class="glyph">${n.glyph}</div><div class="label">${n.label}</div>`;
+        Object.assign(el.style, { left: n.x + "%", top: n.y + "%", width: n.w + "%" });
+        el.innerHTML = `<div class="title">${n.title}</div><div class="subtitle">${n.subtitle}</div>`;
         canvas.appendChild(el);
         nodeEls[n.id] = el;
       }
@@ -253,7 +282,11 @@
       el._pulseTimer = setTimeout(() => el.classList.remove("pulse"), 700);
     }
 
+    // Map a TraceEvent onto the node(s) it should light up.
     function nodesForEvent(evt) {
+      if (evt.kind === "stage") return [evt.actor];                         // estimator | caller
+      if (evt.kind === "call_start" || evt.kind === "call_end") return ["orchestrator"];
+      if (evt.kind === "recommendation") return ["recommendation"];
       if (evt.kind === "blackboard_update") return ["blackboard"];
       if (evt.kind === "guard_intervention" || evt.kind === "honesty_check") return ["buyer", "guard"];
       if (evt.actor === "buyer") return ["buyer"];
@@ -319,10 +352,10 @@
     }
 
     function handleEvent(evt) {
-      const style = evt.detail && evt.detail.style;
-      if (!style) return;
+      for (const nodeId of nodesForEvent(evt)) pulse(nodeId);
 
-      if (evt.kind === "call_start") {
+      const style = evt.detail && evt.detail.style;
+      if (evt.kind === "call_start" && style) {
         const i = STYLE_ORDER.indexOf(style);
         const meta = STYLE_META[style];
         callN.textContent = `Call ${i + 1} of 3`;
@@ -331,12 +364,11 @@
         setActiveCall(style);
         return;
       }
-      if (evt.kind === "call_end") {
+      if (evt.kind === "call_end" && style) {
         markCallDone(style, evt.detail.checklist || {});
         return;
       }
 
-      for (const nodeId of nodesForEvent(evt)) pulse(nodeId);
       const text = (evt.detail && (evt.detail.text || evt.detail.rationale)) || evt.label;
       latestText.innerHTML = `<strong>${evt.actor || evt.kind}</strong> — ${text}`;
       latestPrice.textContent = evt.price != null ? fmtUsd(evt.price) : "";
@@ -349,6 +381,7 @@
       callProves.textContent = "";
       latestText.textContent = "waiting for the calls to start…";
       latestPrice.textContent = "";
+      Object.values(nodeEls).forEach((el) => el.classList.remove("pulse"));
       setStatus("live", "connecting…");
       if (es) es.close();
       es = new EventSource("/demo/three-negotiations/stream");
