@@ -223,6 +223,40 @@ The **trace screen is the Tech hero** — the real seller call plays on the left
 
 Each real call is **one person + our ElevenLabs agent**, not two people on Zoom. So the person on that call just talks to the agent from their own computer/phone, and **records their own leg locally**. Cole edits the clips together afterward.
 
+### “But if we record separately, how do the calls connect?”
+
+Two different things — don’t mix them up:
+
+- **The conversations are connected** — through our agent/software, live. The buyer and seller **never talk to each other**; the agent sits in the middle on both calls. That middle is the whole product.
+- **“Recording separately”** just means each person captures *their own leg* cleanly, instead of filming a grid of Zoom faces.
+
+**What actually links the two calls = one shared scenario the agent carries:**
+
+```text
+Ella (buyer) ── talks to ──▶ AGENT
+                              │  writes down the confirmed dress details
+                              ▼
+                        [ shared scenario ]   ← one frozen file: dress details,
+                              │                  buyer’s target + max, seller’s
+                              │                  limits/style (Ella’s seller data)
+                              ▼
+AGENT ── calls with those exact details ──▶ Cole (seller)
+                              │  negotiates; price moves
+                              ▼
+                        report back to buyer  (cites both real transcripts)
+```
+
+The buyer’s confirmed details flow **into** the seller call. Cole’s seller behaves according to the **same scenario’s** hidden limits. So even recorded on different laptops, the two calls are the same story — because they share one scenario and the agent passes the state from one to the next.
+
+**Two ways to run it:**
+
+| Way | How | When |
+|---|---|---|
+| **Live chain (best)** | Do it in one sequence: Ella’s intake finishes → the system calls Cole right away → report. You *can* all be on Zoom to **cue timing** (muted, not recorded) — just record each leg locally. | If the pipeline runs end-to-end |
+| **Staged (safe)** | Record the legs at different times, but lock the **same scenario numbers** for all of them, then edit into one story. | If live-chaining is flaky on shoot day |
+
+Either way the numbers line up, because the single frozen scenario is the source of truth. Zoom, if used at all, is just a green room for cueing — never the footage.
+
 ### Where the audio actually comes from
 
 ElevenLabs agents **record the call and produce a transcript automatically**. That recording is your cleanest audio — download it and use it as the master track. Everything else (screen, call-UI overlay) is layered on top in editing.
