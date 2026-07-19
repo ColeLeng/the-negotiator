@@ -5,68 +5,81 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>The Negotiator — Three Negotiations</title>
 <style>
+  /*
+   * Citable design tokens (citable-platform/design-tokens/*.json, as compiled to
+   * citable-platform/frontend/src/{styles/tokens.css,index.css}). Brand primitives
+   * and the light/dark semantic aliasing are reproduced verbatim; this page has no
+   * build step, so the values are inlined rather than @import'd from the token CSS.
+   */
   :root {
     color-scheme: dark;
-    --page:        #0d0d0d;
-    --surface:     #1a1a19;
-    --surface-2:   #202020;
-    --text-1:      #ffffff;
-    --text-2:      #c3c2b7;
-    --muted:       #898781;
-    --gridline:    #2c2c2a;
-    --border:      rgba(255,255,255,0.14);
+    /* brand primitives */
+    --color-obsidian:   #161616;
+    --color-pearl:      #F2F1ED;
+    --color-chile-rojo: #AE431E;
+    --color-terracota:  #D06224;
+    --color-olive:      #8A8635;
+    --color-sunset:     #EAC891;
+    --color-grey-200:   #D0D0D0;
+    --color-grey-400:   #7A7A7A;
+    --color-grey-600:   #3A3A3A;
 
-    --estimator:      #3987e5;
-    --caller:         #199e70;
-    --orchestrator:   #9085e9;
-    --buyer:          #3987e5;
-    --seller:         #d95926;
-    --guard:          #e66767;
-    --blackboard:     #c98500;
-    --recommendation: #0ca30c;
+    /* semantic (dark theme) */
+    --page:        var(--color-obsidian);
+    --surface:     var(--color-obsidian);
+    --surface-2:   var(--color-grey-600);
+    --text-1:      var(--color-pearl);
+    --text-2:      var(--color-grey-200);
+    --muted:       var(--color-grey-400);
+    --gridline:    var(--color-grey-600);
+    --border:      var(--color-grey-600);
 
-    --good:     #0ca30c;
-    --warning:  #fab219;
-    --critical: #d03b3b;
+    /* chart palette -> node identity (citable-platform's --chart-1..5) */
+    --estimator:      hsl(173, 58%, 39%);   /* chart-3 */
+    --caller:         var(--color-olive);   /* chart-2 */
+    --orchestrator:   var(--color-terracota); /* chart-5 */
+    --recommendation: var(--color-chile-rojo); /* chart-1 */
+    --guard:          var(--color-chile-rojo); /* chart-1 */
+    --buyer:          hsl(173, 58%, 39%);   /* chart-3 */
+    --seller:         var(--color-sunset);  /* chart-4 */
+    --blackboard:     var(--color-olive);   /* chart-2 */
+
+    --good:     var(--color-olive);
+    --critical: var(--color-chile-rojo);
+
+    --font-brand: "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
+    --font-ui:    "Inter Variable", Inter, sans-serif;
+    --font-mono:  "IBM Plex Mono", monospace;
   }
   @media (prefers-color-scheme: light) {
     :root {
       color-scheme: light;
-      --page:        #f9f9f7;
-      --surface:     #fcfcfb;
-      --surface-2:   #f1f0ec;
-      --text-1:      #0b0b0b;
-      --text-2:      #52514e;
-      --muted:       #898781;
-      --gridline:    #e1e0d9;
-      --border:      rgba(11,11,11,0.14);
-
-      --estimator:      #2a78d6;
-      --caller:         #1baf7a;
-      --orchestrator:   #4a3aa7;
-      --buyer:          #2a78d6;
-      --seller:         #eb6834;
-      --guard:          #e34948;
-      --blackboard:     #eda100;
-      --recommendation: #0ca30c;
+      --page:      var(--color-pearl);
+      --surface:   var(--color-pearl);
+      --surface-2: #E8E7E2;
+      --text-1:    var(--color-obsidian);
+      --text-2:    var(--color-grey-400);
+      --muted:     var(--color-grey-400);
+      --gridline:  #DEDDD8;
+      --border:    #DEDDD8;
     }
   }
 
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--page); color: var(--text-1);
-    font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 13px/1.5 var(--font-ui);
     height: 100vh; display: flex; flex-direction: column;
   }
   header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 16px; border-bottom: 1px solid var(--border); flex: none;
+    display: flex; align-items: center; gap: var(--space-2, 16px);
+    padding: 10px var(--space-2, 16px); border-bottom: 1px solid var(--border); flex: none;
   }
-  header h1 { font-size: 14px; font-weight: 600; margin: 0; }
+  header h1 { font: 600 14px var(--font-brand); margin: 0; letter-spacing: -0.01em; }
   header .sub { color: var(--muted); font-size: 12px; }
   .pill {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border);
+    padding: 3px 10px; border-radius: var(--radius-full, 128px); border: 1px solid var(--border);
     font-size: 11px; color: var(--text-2);
   }
   .pill .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--muted); }
@@ -74,33 +87,33 @@
   .pill.done .dot { background: var(--estimator); }
   .pill.error .dot { background: var(--critical); }
   button.reconnect {
-    margin-left: auto; background: var(--surface-2); color: var(--text-1);
-    border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px;
-    font-size: 12px; cursor: pointer;
+    margin-left: auto; background: var(--primary, var(--color-chile-rojo)); color: var(--color-pearl);
+    border: 1px solid transparent; border-radius: var(--radius-md, 8px); padding: 6px 14px;
+    font: 500 12px var(--font-ui); cursor: pointer;
   }
-  button.reconnect:hover { border-color: var(--muted); }
+  button.reconnect:hover { opacity: 0.9; }
 
   main {
-    flex: 1; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 10px;
-    padding: 12px 16px 14px; min-height: 0;
+    flex: 1; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: var(--space-1, 8px);
+    padding: var(--space-2, 16px) var(--space-2, 16px) 14px; min-height: 0;
   }
 
   .section-label {
-    color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: var(--tracking-overline, 0.04em);
   }
 
   /* -------- call indicator -------- */
   #call-indicator { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   #call-indicator .n { font-size: 11px; color: var(--muted); }
-  #call-indicator .title { font-size: 17px; font-weight: 700; }
+  #call-indicator .title { font: 700 17px var(--font-brand); }
   #call-indicator .proves {
     font-size: 10.5px; color: var(--orchestrator);
     border: 1px solid color-mix(in srgb, var(--orchestrator) 45%, transparent);
-    border-radius: 6px; padding: 2px 8px;
+    border-radius: var(--radius-sm, 4px); padding: 2px 8px;
   }
   #call-tabs { margin-left: auto; display: flex; gap: 6px; }
   .call-tab {
-    font-size: 10.5px; padding: 3px 9px; border-radius: 999px;
+    font-size: 10.5px; padding: 3px 9px; border-radius: var(--radius-full, 128px);
     border: 1px solid var(--border); color: var(--muted);
   }
   .call-tab.active { color: var(--text-1); border-color: var(--text-1); }
@@ -109,7 +122,7 @@
   /* -------- one unified, full-pipeline architecture diagram -------- */
   #diagram-wrap {
     position: relative;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg, 16px);
     padding: 10px 14px 14px; min-height: 0; display: flex; flex-direction: column;
   }
   #diagram-canvas { position: relative; flex: 1; min-height: 280px; }
@@ -117,42 +130,42 @@
   .node {
     position: absolute;
     border: 1.5px solid var(--border);
-    border-radius: 9px;
+    border-radius: var(--radius-md, 8px);
     background: var(--surface-2);
     padding: 8px 10px;
     transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
   }
-  .node .title { font-size: 12px; font-weight: 600; color: var(--text-1); }
+  .node .title { font: 600 12px var(--font-ui); color: var(--text-1); }
   .node .subtitle { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
   .node.pulse {
     border-color: var(--node-color, var(--text-1));
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-color, var(--text-1)) 30%, transparent);
-    background: color-mix(in srgb, var(--node-color, var(--text-1)) 12%, var(--surface-2));
+    background: color-mix(in srgb, var(--node-color, var(--text-1)) 14%, var(--surface-2));
   }
 
   /* -------- calls summary strip -------- */
   #calls-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .call-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+  .call-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md, 8px); padding: 8px 12px; }
   .call-card.active { border-color: var(--text-1); }
-  .call-card .name { font-size: 11.5px; font-weight: 700; }
+  .call-card .name { font: 700 11.5px var(--font-ui); }
   .call-card .checks { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
   .check-chip {
     font-size: 9.5px; color: var(--muted); border: 1px solid var(--border);
-    border-radius: 999px; padding: 1px 6px;
+    border-radius: var(--radius-full, 128px); padding: 1px 6px;
   }
   .check-chip.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, transparent); }
 
   /* -------- latest turn -------- */
   #latest-turn {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md, 8px);
     padding: 10px 14px; display: flex; align-items: center; gap: 12px; min-height: 46px;
   }
   #latest-turn .tag {
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 2px 8px; border-radius: 6px; background: var(--surface-2); color: var(--text-2); flex: none;
+    font: 700 10px var(--font-ui); text-transform: uppercase; letter-spacing: var(--tracking-overline, 0.04em);
+    padding: 2px 8px; border-radius: var(--radius-sm, 4px); background: var(--surface-2); color: var(--text-2); flex: none;
   }
   #latest-turn .text { flex: 1; color: var(--text-1); }
-  #latest-turn .price { font-variant-numeric: tabular-nums; color: var(--text-2); flex: none; }
+  #latest-turn .price { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-2); flex: none; }
 </style>
 </head>
 <body>
