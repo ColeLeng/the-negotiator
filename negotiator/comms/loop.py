@@ -22,14 +22,19 @@ def run_negotiation(
     session,
     max_exchanges: Optional[int] = None,
     tracer: Optional[Tracer] = None,
+    trace_detail: Optional[dict] = None,
 ):
     """Drive one Buyer ⇄ Seller negotiation to a terminal state; return the NegotiationSession.
 
     `buyer` is a BuyerAgent (opens the negotiation); `channel` delivers to the seller side.
     `tracer`, if given, logs every turn for the demo's live agent-behavior panel.
+    `trace_detail`, if given, is merged into every emitted event's `detail` (e.g. a
+    caller running several named scenarios can tag `{"style": "..."}` so a consumer
+    can route each event to the right lane without this loop knowing about lanes).
     """
     if max_exchanges is None:
         max_exchanges = 2 * getattr(buyer, "max_rounds", 6) + 2
+    extra_detail = trace_detail or {}
 
     def log(msg) -> None:
         session.messages.append(msg)
@@ -45,7 +50,10 @@ def run_negotiation(
                 option_id=session.option_id,
                 label=f"{msg.sender} {msg.intent}{price_str}",
                 price=msg.price,
-                detail={"intent": msg.intent, "rationale": msg.rationale, "terms_delta": msg.terms_delta},
+                detail={
+                    "intent": msg.intent, "text": msg.text, "rationale": msg.rationale,
+                    "terms_delta": msg.terms_delta, **extra_detail,
+                },
             )
 
     outbound = guard_outbound(buyer.open(), blackboard, session.session_id)
@@ -66,6 +74,7 @@ def run_negotiation(
                     option_id=session.option_id,
                     label=f"Blackboard: posted ${inbound.price:,.0f} for {session.session_id}",
                     price=inbound.price,
+                    detail=dict(extra_detail),
                 )
 
         if inbound.intent == "accept":

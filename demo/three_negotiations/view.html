@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Negotiator — Three Negotiations</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --page:        #0d0d0d;
+    --surface:     #1a1a19;
+    --surface-2:   #202020;
+    --text-1:      #ffffff;
+    --text-2:      #c3c2b7;
+    --muted:       #898781;
+    --gridline:    #2c2c2a;
+    --border:      rgba(255,255,255,0.14);
+
+    --buyer:  #3987e5;
+    --seller: #d95926;
+    --lever:  #9085e9;
+
+    --good:     #0ca30c;
+    --warning:  #fab219;
+    --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --page:        #f9f9f7;
+      --surface:     #fcfcfb;
+      --surface-2:   #f1f0ec;
+      --text-1:      #0b0b0b;
+      --text-2:      #52514e;
+      --muted:       #898781;
+      --gridline:    #e1e0d9;
+      --border:      rgba(11,11,11,0.14);
+      --buyer:  #2a78d6;
+      --seller: #eb6834;
+      --lever:  #4a3aa7;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--text-1);
+    font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border); flex: none;
+  }
+  header h1 { font-size: 14px; font-weight: 600; margin: 0; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border);
+    font-size: 11px; color: var(--text-2);
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--muted); }
+  .pill.live .dot { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+  .pill.done .dot { background: var(--buyer); }
+  .pill.error .dot { background: var(--critical); }
+  button.reconnect {
+    margin-left: auto; background: var(--surface-2); color: var(--text-1);
+    border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px;
+    font-size: 12px; cursor: pointer;
+  }
+  button.reconnect:hover { border-color: var(--muted); }
+
+  main {
+    flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    padding: 12px 16px 14px; min-height: 0;
+  }
+  .lane {
+    display: flex; flex-direction: column; min-height: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden;
+  }
+  .lane-head { padding: 10px 14px; border-bottom: 1px solid var(--gridline); }
+  .lane-head .idx { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .lane-head .title { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .lane-head .played { color: var(--text-2); font-size: 11.5px; margin-top: 3px; }
+  .lane-head .proves {
+    margin-top: 6px; font-size: 10.5px; color: var(--lever);
+    border: 1px solid color-mix(in srgb, var(--lever) 45%, transparent);
+    border-radius: 6px; padding: 3px 7px; display: inline-block;
+  }
+
+  .checklist { padding: 8px 14px; border-bottom: 1px solid var(--gridline); }
+  .check-item {
+    display: flex; align-items: center; gap: 7px; font-size: 11.5px;
+    color: var(--muted); padding: 2px 0;
+  }
+  .check-item .dot {
+    width: 13px; height: 13px; border-radius: 999px; flex: none;
+    border: 1.5px solid var(--muted); display: flex; align-items: center; justify-content: center;
+  }
+  .check-item.done { color: var(--text-1); }
+  .check-item.done .dot { border-color: var(--good); background: color-mix(in srgb, var(--good) 20%, transparent); }
+  .check-item.done .dot::after { content: "✓"; font-size: 9px; color: var(--good); font-weight: 700; }
+
+  .price-row {
+    padding: 8px 14px; border-bottom: 1px solid var(--gridline);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .price-row .status {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-2);
+  }
+  .price-row .status.agreed      { color: var(--good);     border-color: color-mix(in srgb, var(--good) 50%, transparent); }
+  .price-row .status.walked_away { color: var(--warning);  border-color: color-mix(in srgb, var(--warning) 50%, transparent); }
+  .price-row .status.refused     { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 50%, transparent); }
+  .price-row .price {
+    font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
+    transition: color 120ms ease;
+  }
+  .price-row .price.flash { color: var(--good); }
+
+  .lane-feed { flex: 1; overflow-y: auto; padding: 2px 0; }
+  .row {
+    padding: 5px 14px; border-bottom: 1px solid var(--gridline); font-size: 12px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .who { font-weight: 700; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.03em; }
+  .row .who.buyer  { color: var(--buyer); }
+  .row .who.seller { color: var(--seller); }
+  .row .text { color: var(--text-1); margin-top: 1px; }
+  .row .text .price { display: inline; font-size: inherit; font-weight: 700; color: inherit; }
+  .row.honesty_check   { background: color-mix(in srgb, var(--lever) 10%, transparent); }
+  .row.guard_intervention { background: color-mix(in srgb, var(--critical) 10%, transparent); }
+  .row.ai_disclosure, .row.friction { background: color-mix(in srgb, var(--good) 8%, transparent); }
+  .row .tag {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+    margin-left: 6px;
+  }
+
+  .lane-feed::-webkit-scrollbar { width: 7px; }
+  .lane-feed::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 4px; }
+
+  @media (max-width: 980px) {
+    main { grid-template-columns: 1fr; overflow-y: auto; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>The Negotiator</h1>
+    <span class="sub">three negotiations · Cole voices all three</span>
+    <span id="status-pill" class="pill"><span class="dot"></span><span id="status-label">connecting…</span></span>
+    <button class="reconnect" id="reconnect">Run again</button>
+  </header>
+  <main id="lanes"></main>
+
+  <script>
+    // Static metadata (mirrors demo/three_negotiations/scenarios.py) so each lane
+    // renders immediately, even before its call_start event arrives.
+    const STYLE_ORDER = ["tough_but_fair", "stonewaller", "upseller"];
+    const STYLE_META = {
+      tough_but_fair: { title: "Tough but fair", played: "Holds firm, pushes a deposit, but will deal.", proves: "Price moves during the call" },
+      stonewaller:    { title: "Won’t quote by phone", played: "“We only give prices at an in-store appointment.”", proves: "Every call ends with a real outcome" },
+      upseller:       { title: "Upseller", played: "Piles on rush fees, veil, alterations to inflate the total.", proves: "Quotes are itemized and comparable" },
+    };
+    const CHECK_LABELS = {
+      price_moves: "Price moves during the call",
+      structured_ending: "Structured ending",
+      ai_disclosure: "AI discloses itself",
+      friction_handled: "Friction handled gracefully",
+      honest_leverage_only: "Only real leverage used",
+      callback_or_range_extracted: "Callback / range extracted",
+      fees_itemized: "Fees itemized",
+    };
+
+    const lanesEl = document.getElementById("lanes");
+    const statusPill = document.getElementById("status-pill");
+    const statusLabel = document.getElementById("status-label");
+    const reconnectBtn = document.getElementById("reconnect");
+    const lanes = {};
+    let es = null;
+
+    function setStatus(kind, text) { statusPill.className = "pill " + kind; statusLabel.textContent = text; }
+
+    function fmtUsd(n) {
+      if (n === null || n === undefined || Number.isNaN(n)) return "—";
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+    }
+
+    function buildLane(style) {
+      const meta = STYLE_META[style] || { title: style, played: "", proves: "" };
+      const idx = STYLE_ORDER.indexOf(style) + 1;
+      const el = document.createElement("div");
+      el.className = "lane";
+      el.innerHTML = `
+        <div class="lane-head">
+          <div class="idx">Call ${idx} of 3</div>
+          <div class="title">${meta.title}</div>
+          <div class="played">${meta.played}</div>
+          <div class="proves">${meta.proves}</div>
+        </div>
+        <div class="checklist"></div>
+        <div class="price-row"><span class="status"></span><span class="price">—</span></div>
+        <div class="lane-feed"></div>
+      `;
+      lanesEl.appendChild(el);
+      return {
+        el,
+        checklistEl: el.querySelector(".checklist"),
+        statusEl: el.querySelector(".status"),
+        priceEl: el.querySelector(".price"),
+        feedEl: el.querySelector(".lane-feed"),
+        checklist: {},
+      };
+    }
+
+    function laneFor(style) {
+      if (!lanes[style]) lanes[style] = buildLane(style);
+      return lanes[style];
+    }
+
+    function renderChecklist(lane) {
+      const keys = Object.keys(lane.checklist);
+      lane.checklistEl.innerHTML = keys.map((k) => {
+        const done = !!lane.checklist[k];
+        return `<div class="check-item ${done ? "done" : ""}"><span class="dot"></span>${CHECK_LABELS[k] || k}</div>`;
+      }).join("");
+    }
+
+    function appendRow(lane, evt) {
+      const row = document.createElement("div");
+      row.className = "row " + evt.kind;
+      const who = evt.actor === "buyer" ? "buyer" : evt.actor === "seller" ? "seller" : (evt.actor || "");
+      const tagFor = { ai_disclosure: "disclosure", friction: "friction", honesty_check: "honest leverage", guard_intervention: "guard stripped it" };
+      row.innerHTML = `
+        <div class="who ${who}">${who || evt.kind.replace("_", " ")}${tagFor[evt.kind] ? `<span class="tag">${tagFor[evt.kind]}</span>` : ""}</div>
+        <div class="text">${evt.detail && evt.detail.text ? evt.detail.text : (evt.detail && evt.detail.rationale) || evt.label}</div>
+      `;
+      lane.feedEl.appendChild(row);
+      lane.feedEl.scrollTop = lane.feedEl.scrollHeight;
+    }
+
+    function handleEvent(evt) {
+      const style = evt.detail && evt.detail.style;
+      if (!style) return; // ignore anything not tagged to a lane
+
+      const lane = laneFor(style);
+
+      if (evt.kind === "call_start") {
+        lane.statusEl.textContent = "in progress";
+        lane.statusEl.className = "status";
+        return;
+      }
+      if (evt.kind === "call_end") {
+        lane.checklist = evt.detail.checklist || {};
+        renderChecklist(lane);
+        const status = evt.detail.status || "";
+        lane.statusEl.textContent = status.replace("_", " ");
+        lane.statusEl.className = "status " + status;
+        return;
+      }
+
+      appendRow(lane, evt);
+      if (evt.price !== null && evt.price !== undefined) {
+        lane.priceEl.textContent = fmtUsd(evt.price);
+        lane.priceEl.classList.add("flash");
+        setTimeout(() => lane.priceEl.classList.remove("flash"), 220);
+      }
+    }
+
+    function connect() {
+      lanesEl.innerHTML = "";
+      Object.keys(lanes).forEach((k) => delete lanes[k]);
+      STYLE_ORDER.forEach(laneFor); // pre-render all three lanes immediately
+      setStatus("live", "connecting…");
+      if (es) es.close();
+      es = new EventSource("/demo/three-negotiations/stream");
+      es.addEventListener("trace", (ev) => { setStatus("live", "live"); handleEvent(JSON.parse(ev.data)); });
+      es.addEventListener("done", () => { setStatus("done", "done"); es.close(); });
+      es.onerror = () => { setStatus("error", "disconnected — click Run again"); es.close(); };
+    }
+
+    reconnectBtn.addEventListener("click", connect);
+    connect();
+  </script>
+</body>
+</html>
