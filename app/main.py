@@ -37,7 +37,12 @@ from negotiator.estimator import (
     to_buyer_intent,
 )
 from negotiator.tracing import Tracer
-from negotiator.voice_intake import build_agent_config, handle_tool_call, handle_tool_call_to_intent
+from negotiator.voice_intake import (
+    build_agent_config,
+    handle_tool_call,
+    handle_tool_call_to_intent,
+    intent_from_conversation,
+)
 
 app = FastAPI(title="The Negotiator", version="0.1.0")
 
@@ -122,6 +127,16 @@ def estimate_voice_webhook(req: VoiceWebhookRequest) -> ProductSpec:
 def estimate_voice_intent(req: VoiceWebhookRequest) -> dict:
     """Voice tool-call → buyer-intent JSON (the handoff to parallel quote-seeking)."""
     return handle_tool_call_to_intent(req.tool_args, vertical=req.vertical)
+
+
+@app.post("/estimate/voice/from-call")
+def estimate_voice_from_call(conversation_id: str, vertical: Optional[str] = None) -> dict:
+    """Post-call path: a recorded ElevenLabs conversation_id → buyer-intent JSON. No live
+    webhook needed — processes the call ElevenLabs already recorded. Needs ELEVENLABS_API_KEY."""
+    try:
+        return intent_from_conversation(conversation_id, vertical=vertical)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/estimate/intent")

@@ -235,6 +235,40 @@ def handle_tool_call_to_intent(tool_args: dict, vertical: Optional[str] = None) 
     return to_buyer_intent(handle_tool_call(tool_args, vertical=vertical))
 
 
+def fetch_conversation(conversation_id: str) -> dict:
+    """GET a completed ElevenLabs conversation (transcript + analysis). Needs
+    ELEVENLABS_API_KEY. This is the post-call path: no live webhook/tunnel required —
+    just process the call ElevenLabs already recorded."""
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    if not api_key:
+        raise RuntimeError("fetch_conversation needs ELEVENLABS_API_KEY.")
+    resp = httpx.get(
+        f"{_ELEVENLABS_BASE_URL}/convai/conversations/{conversation_id}",
+        headers={"xi-api-key": api_key}, timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def transcript_to_text(conversation: dict) -> str:
+    """Flatten an ElevenLabs conversation transcript to plain text (role: message per
+    line), ready for the same `estimate()` pipeline the text/document paths use."""
+    lines = []
+    for turn in conversation.get("transcript", []):
+        msg = turn.get("message") or turn.get("text")
+        if msg:
+            lines.append(f"{turn.get('role', 'user')}: {msg}")
+    return "\n".join(lines)
+
+
+def intent_from_conversation(conversation_id: str, vertical: Optional[str] = None) -> dict:
+    """Post-call path: fetch a recorded ElevenLabs intake call, run its transcript
+    through `estimate()`, and return the buyer-intent JSON handoff. Extraction is much
+    sharper with ANTHROPIC_API_KEY set (LLM extraction) than with the keyless heuristic."""
+    text = transcript_to_text(fetch_conversation(conversation_id))
+    return to_buyer_intent(estimate(text, vertical=vertical))
+
+
 def _flatten_tool_args(tool_args: dict) -> str:
     parts = [f"{k}: {v}" for k, v in (tool_args.get("attributes") or {}).items() if v]
     if tool_args.get("target_price"):
@@ -249,11 +283,13 @@ def _flatten_tool_args(tool_args: dict) -> str:
 def _cli(argv: Optional[list] = None) -> int:
     """Small operator CLI:
 
-        python -m negotiator.voice_intake config   <vertical>          # print agent config JSON
-        python -m negotiator.voice_intake provision <vertical> [id]    # create/update the live agent
-        python -m negotiator.voice_intake intent    <vertical> "text"  # buyer-intent JSON from text
+        python -m negotiator.voice_intake config    <vertical>           # print agent config JSON
+        python -m negotiator.voice_intake provision  <vertical> [id]     # create/update the live agent
+        python -m negotiator.voice_intake intent     <vertical> "text"   # buyer-intent JSON from text
+        python -m negotiator.voice_intake from-call  <vertical> <conv_id># buyer-intent JSON from a recorded call
 
-    `provision` needs ELEVENLABS_API_KEY in the environment (never hard-code it).
+    `provision` and `from-call` need ELEVENLABS_API_KEY in the environment (never
+    hard-code it). `from-call` is the post-call path — no live webhook/tunnel required.
     """
     import json
     import sys
@@ -273,6 +309,9 @@ def _cli(argv: Optional[list] = None) -> int:
     if cmd == "intent" and len(rest) >= 2:
         intent = to_buyer_intent(estimate(rest[1], vertical=rest[0]))
         print(json.dumps(intent, indent=2, ensure_ascii=False))
+        return 0
+    if cmd == "from-call" and len(rest) >= 2:
+        print(json.dumps(intent_from_conversation(rest[1], vertical=rest[0]), indent=2, ensure_ascii=False))
         return 0
     print(_cli.__doc__)
     return 2
