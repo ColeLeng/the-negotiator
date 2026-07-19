@@ -1,0 +1,31 @@
+{
+  "vendor": "Kleinfeld Bridal",
+  "brand": {
+    "positioning": "luxury flagship",
+    "specialties": ["designer trunk shows", "in-house master tailoring", "on-site stylist team"],
+    "heritage": "NYC flagship with 80+ designers under one roof; the largest bridal salon in the country."
+  },
+  "returns_refunds": {
+    "window_days": 14,
+    "restocking_fee_pct": 0,
+    "notes": "Unworn accessories returnable for store credit within 14 days. Gowns are final sale once alterations begin. Coupons and earned credits are promotional and are NOT refunded."
+  },
+  "service_sla": {
+    "support_response_hours": 4,
+    "alteration_weeks": 8,
+    "shipping_days": 5,
+    "lead_time_days": 30,
+    "lifetime_alterations": false,
+    "justifications": {
+      "alteration_weeks": "Hand-fitted across three in-person fittings by in-house seamstresses.",
+      "shipping_days": "White-glove delivery with a garment specialist and steaming on arrival."
+    }
+  },
+  "upsell_catalog": [
+    {"name": "cathedral veil", "price": 180, "code": "veil_cathedral"},
+    {"name": "bridal cape", "price": 220, "code": "cape"},
+    {"name": "watteau train", "price": 260, "code": "watteau_train"},
+    {"name": "opera gloves", "price": 60, "code": "gloves"},
+    {"name": "crystal hair vine", "price": 90, "code": "hair"}
+  ]
+}

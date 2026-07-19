@@ -2,9 +2,11 @@
 
 **Audience:** Ella (seller side) · **Contracts owner:** Suman §4 / §8 · **Caller handoff:** Cole  
 **Canonical architecture:** [`technical-architecture.md`](technical-architecture.md)  
-**Runnable scaffold:** [`negotiator/agents/seller_agent.py`](../negotiator/agents/seller_agent.py) · [`negotiator/seller_value.py`](../negotiator/seller_value.py)
+**Owned modules:** [`negotiator/agents/seller_agent.py`](../negotiator/agents/seller_agent.py) · [`negotiator/seller_value.py`](../negotiator/seller_value.py) · [`negotiator/brand_profiles.py`](../negotiator/brand_profiles.py) · [`negotiator/buyer_intent.py`](../negotiator/buyer_intent.py) · [`config/brands/`](../config/brands)
 
 This doc freezes what Ella must build so the **Caller’s agent-to-agent path** can demo live negotiations against **≥3 distinct negotiation styles**, with every quote in **structured, comparable, fee-itemized** form.
+
+> **Status (delivered):** the required scaffold is complete — `should_accept`/`should_walk` implemented, value model deepened (capacity + strategic levers), three style trajectories, itemized endings, and the three owned test files green (50 tests total). Four **nice-to-have margin levers** are also implemented (brand/SLA config, accessory upsell catalog, buyer-intent capture, credit-for-commitment) — see **§14**. The seller is a **deterministic policy today, agent-ready** — see **§15**.
 
 ---
 
@@ -80,16 +82,18 @@ surplus(offer, state)  = offer.price − dynamic_floor(state)
 seller accepts iff price ≥ dynamic_floor   # and style policy agrees this round
 ```
 
-Required APIs (already stubbed in `seller_value.py` — deepen, don’t rename):
+Required APIs in `seller_value.py` (pure, unit-tested — deepen, don’t rename):
 
-| Function | Contract |
-|---|---|
-| `dynamic_floor(state) -> float` | Inventory/capacity modulate reservation in real time |
-| `surplus(offer_price, state) -> float` | Pure; no I/O |
-| `next_seller_min(state, round, max_rounds) -> float` | Concession curve list → floor (never below floor) |
-| `bundled_ask` / `upsell_ask` | Upseller open + strip-addon concede path |
-
-**Nice-to-have:** capacity penalty (longer lead time instead of discount when `at_capacity`); strategic bonus for clearing aged SKUs.
+| Function | Contract | State |
+|---|---|---|
+| `dynamic_floor(state) -> float` | Inventory/capacity modulate reservation in real time; clamped ≥ `cost_floor` | ✅ |
+| `surplus(offer_price, state) -> float` | Pure; no I/O | ✅ |
+| `next_seller_min(state, round, max_rounds) -> float` | Concession curve list → floor (never below floor) | ✅ |
+| `bundled_ask` / `upsell_ask` | Upseller open + strip-addon concede path | ✅ |
+| `strategic_bonus(state) -> float` | Extra concession to clear aged/glutted SKUs (past a staleness threshold) | ✅ delivered |
+| `capacity_penalty(state) -> float` | Extra **lead-time days** to offer instead of a discount when `at_capacity` | ✅ delivered |
+| `value_hold(my_min, list_price, value_score) -> float` | Brand value holds the round-minimum closer to list (§14) | ✅ delivered |
+| `credit_expected_cost(...)` / `choose_credit(...)` | Credit-vs-price-cut economics (§14) | ✅ delivered |
 
 ---
 
@@ -101,8 +105,8 @@ class SellerAgent:
     def open(self) -> NegotiationMessage: ...
     def respond(self, inbound: NegotiationMessage) -> NegotiationMessage: ...
     def evaluate(self, offer_price: float) -> float: ...
-    def should_accept(self, offer_price: float) -> bool: ...   # TODO deepen
-    def should_walk(self, ctx) -> bool: ...                    # TODO deepen
+    def should_accept(self, offer_price: float) -> bool: ...   # ✅ price ≥ floor AND round-min
+    def should_walk(self, ctx) -> bool: ...                    # ✅ out of rounds / stonewaller unbooked
 ```
 
 **Outbound message rules**
@@ -161,21 +165,23 @@ Cole’s `quote_capture` fills these from `status` + `SellerState` today; Ella s
 
 ## 10. Min demoable vs nice-to-have (cut lines)
 
-| | Min demoable (ship) | Nice-to-have |
-|---|---|---|
-| Policy | One inventory flag changes concede speed; three style branches | Full capacity + bundle planner + multi-attr trades |
-| Channel | Works on `MockChannel` | Same agent over `UCPChannel` with zero logic change |
-| LLM | Deterministic policy (current scaffold) | Claude-backed `next_seller_move` with tool calls to value model |
-| Evals | Fixture: aging stock concedes more than fresh | Golden transcripts per style |
+| | Min demoable (ship) | Nice-to-have | State |
+|---|---|---|---|
+| Policy | One inventory flag changes concede speed; three style branches | Capacity lever + accessory bundle catalog + intent/credit trades (§14) | ✅ ship + §14 |
+| Channel | Works on `MockChannel` | Same agent over `UCPChannel` with zero logic change | ✅ ship (UCP pending Suman) |
+| LLM | Deterministic policy (current scaffold) | Claude-backed `next_seller_move` with tool calls to value model | deterministic shipped; LLM path open (§15) |
+| Evals | Fixture: aging stock concedes more than fresh | Golden transcripts per style | ✅ ship + brand/credit tests |
 
 ---
 
 ## 11. Test checklist Ella owns
 
 ```text
-tests/test_seller_value.py     # dynamic_floor drops with stock age; surplus sign
-tests/test_seller_styles.py    # three styles → three distinct message trajectories
-tests/test_seller_itemization.py  # accept path yields fee lines covering final price
+tests/test_seller_value.py        # ✅ dynamic_floor drops with stock age; surplus sign; curve ≥ floor; capacity/strategic
+tests/test_seller_styles.py       # ✅ three styles → distinct trajectories; aging concedes further; stonewaller callback
+tests/test_seller_itemization.py  # ✅ accept path yields fee lines covering final price; deposit is a schedule line
+tests/test_seller_brand.py        # ✅ value_score dampening holds price; accessory merge; non-refundable policy (§14)
+tests/test_seller_incentives.py   # ✅ intent capture; credit math; credit stays out of price & itemized total (§14)
 ```
 
 Fixture hook: `fixtures/ranked_options.json` options already carry channels; Caller now also stamps `negotiation_style` + `fee_template` at runtime.
@@ -194,9 +200,36 @@ Fixture hook: `fixtures/ranked_options.json` options already carry channels; Cal
 ## 13. Quick start for Ella
 
 ```bash
-source .venv/bin/activate
-python run_demo.py          # watch three styles + itemized endings
-pytest -q tests/test_caller.py tests/test_negotiation.py
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # first time
+.venv/bin/python run_demo.py     # three styles + itemized endings + margin levers (asks/credits/SLA)
+.venv/bin/pytest -q               # 50 tests incl. tests/test_seller_*.py
 ```
 
 Deepen `SellerAgent._respond_*` and `seller_value.*` behind the same signatures; keep `run_demo.py` green.
+
+---
+
+## 14. Delivered margin levers (nice-to-have — implemented)
+
+Four merchant-margin features beyond the ship bar. **All ride on existing `NegotiationMessage` fields (`terms_delta`/`text`), add no new intents, and never write `NegotiationSession`** — so the surface shared with Suman is still **only** `NegotiationMessage` + the agent interface. Each degrades gracefully with today’s price-only buyer.
+
+| Lever | What it does | Where | Holds landing price up by… |
+|---|---|---|---|
+| **Brand / policy / SLA config** | `value_score` dampens concession; brand justifies the hold; real inventory may override economics | `brand_profiles.py`, `config/brands/*.json` | conceding **less** per round when service value is high |
+| **Accessory upsell catalog** | veil / cape / Watteau train / gloves / hair merge into `catalog_addons` + optional fee lines | brand JSON `upsell_catalog` → `seller_value.bundled_ask`/`upsell_ask` | raising the bundle total; each accessory is concession currency (strip, don’t cut gown) |
+| **Buyer-intent capture** | reads volunteered `terms_delta` signals; `ask`s for one missing signal before conceding | `buyer_intent.py` | conceding less when the buyer reveals urgency / low flexibility |
+| **Credit-for-commitment** | small, contingent, **non-refundable** post-purchase credit (photo review, preference share) in `terms_delta`; commitment documented on `accept` | `seller_value.choose_credit` + `buyer_intent.commitment_terms` | **credit never enters `price`** — buyer perceives value, gown margin is protected |
+
+**Credit rules (honesty + comparability):** credit lives in `terms_delta`, never `price`; `quote_capture` totals are unaffected (credit is not a fee line). Unlock is `on_purchase_placed`; `credit_nonrefundable=true` (promotional, excluded from refunds). “Both sides documented” = the seller’s `accept` carries the commitment in the transcript; the buyer echoing `commitment_id` is an optional Suman upgrade.
+
+**`terms_delta` key vocabulary added** (values inside `NegotiationMessage`, not a schema change): `ask`, `value_justification`, `lead_time_days`, `credit_offer`, `credit_type`, `credit_pct`, `credit_conditions`, `credit_unlock`, `credit_nonrefundable`, `commitment_id`.
+
+**Optional cross-team upgrades (not required for the ship bar):** Suman extends `BuyerAgent` to answer `ask`s / echo the commitment / value SLA terms in `buyer_value`; Cole confirms the `terms_delta` credit-key vocabulary and that `quote_capture` keeps credits out of the comparable total (true today, no change).
+
+---
+
+## 15. Deterministic today, agent-ready
+
+The seller is a **deterministic policy** — agent-shaped interface, workflow inside: same inputs → same outputs, no LLM (even `commitment_id` is deterministic so runs reproduce). This is the doc’s ship path.
+
+The interface + `terms_delta` contract are **LLM-ready**: a Claude-backed `next_seller_move` can replace the `_respond_*` bodies and call the value model (`dynamic_floor`, `choose_credit`, `credit_expected_cost`, `value_hold`) as tools — deciding *when* to ask for intent, *which* accessory to bundle, *how much* credit to offer, and phrasing honest rationale — with zero change to the loop, tests, itemization, or the shared surface.

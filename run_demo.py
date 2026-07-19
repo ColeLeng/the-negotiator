@@ -59,6 +59,23 @@ def main() -> None:
         for m in s.messages:
             price = f"${m.price:.0f}" if m.price is not None else "  —  "
             print(f"      {m.sender:<6} {m.intent:<8} {price:>7}  · {m.rationale}")
+            # Surface the margin levers riding in terms_delta (asks, credits, SLA, capacity).
+            td = m.terms_delta or {}
+            notes = []
+            if "ask" in td:
+                notes.append(f"asks buyer: {td['ask']}")
+            if "credit_offer" in td:
+                notes.append(
+                    f"credit ${td['credit_offer']} for {td.get('credit_conditions','review')} "
+                    f"(non-refundable, unlock {td.get('credit_unlock','on_purchase_placed')}) "
+                    f"[{td.get('commitment_id','')}]"
+                )
+            if "value_justification" in td:
+                notes.append(f"holds price — {td['value_justification']}")
+            if "lead_time_days" in td:
+                notes.append(f"offers lead time {td['lead_time_days']}d (not a discount)")
+            for n in notes:
+                print(f"                         ↳ {n}")
 
     rec = result["recommendation"]
     print("\n[Recommendation]")

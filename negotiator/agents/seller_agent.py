@@ -16,19 +16,65 @@ Honesty: no phantom "another buyer offered more", no fake scarcity.
 """
 from __future__ import annotations
 
-from .. import seller_value
+from .. import brand_profiles, buyer_intent, seller_value
 from ..contracts import NegotiationMessage, SellerState, seller_msg
 
 
 class SellerAgent:
     def __init__(self, state: SellerState, max_rounds: int = 6):
+        # Load this vendor's brand/policy/SLA profile (if any) and fold it into our own
+        # copy of the state: adds accessory upsells + a value_score that holds price.
+        self.brand = brand_profiles.load_brand(state.vendor)
+        if self.brand:
+            state = brand_profiles.apply_brand(state, self.brand)
+            self.value_score = brand_profiles.value_score(self.brand)
+        else:
+            self.value_score = 0.0
         self.state = state
         self.max_rounds = max_rounds
         self.round = 0
         self.style = state.style or "tough_negotiator"
+        self.intent = buyer_intent.BuyerIntent()   # captures what the buyer volunteers
 
     def evaluate(self, offer_price: float) -> float:
         return seller_value.surplus(offer_price, self.state)
+
+    # ── decision helpers (§6 interface — shared with Suman) ──────────────────
+
+    def _round_min(self) -> float:
+        """Lowest price this style will take *this round*. Collapses to floor on the
+        final round; above floor earlier (style-specific hold)."""
+        floor = seller_value.dynamic_floor(self.state)
+        if self.round >= self.max_rounds:
+            return floor
+        my_min = seller_value.next_seller_min(self.state, self.round, self.max_rounds)
+        if self.style == "tough_negotiator":
+            # Tough holds a wider gap to floor early (stretch the concession curve).
+            my_min = max(my_min, floor + (self.state.list_price - floor) * 0.25 * (1 - self.round / self.max_rounds))
+        elif self.style == "hard_sell_upseller":
+            # Upseller's round minimum is driven by the add-on-strip path.
+            my_min = max(floor, seller_value.upsell_ask(self.state, self.round, self.max_rounds))
+        # Brand value justifies conceding less → hold the round-minimum closer to list.
+        if self.value_score:
+            my_min = seller_value.value_hold(my_min, self.state.list_price, self.value_score)
+        return max(floor, my_min)
+
+    def should_accept(self, offer_price: float) -> bool:
+        """Accept iff the offer clears the dynamic floor AND this round's style hold."""
+        if offer_price is None:
+            return False
+        return offer_price >= seller_value.dynamic_floor(self.state) and offer_price >= self._round_min()
+
+    def should_walk(self, ctx=None) -> bool:
+        """Terminate rather than deal: out of rounds with no floor-clearing offer, or a
+        stonewaller the buyer never booked. `ctx` may be the inbound message (or None)."""
+        floor = seller_value.dynamic_floor(self.state)
+        price = getattr(ctx, "price", None) if ctx is not None else None
+        if self.style == "stonewaller_no_prices_by_phone" and self.round >= self.max_rounds:
+            return not self.should_accept(price)
+        if self.round >= self.max_rounds:
+            return price is None or price < floor
+        return False
 
     def open(self) -> NegotiationMessage:
         if self.style == "hard_sell_upseller":
@@ -49,45 +95,77 @@ class SellerAgent:
                 terms_delta={"appointment": "required"},
                 rationale="We only quote after an in-store appointment — stonewaller open.",
             )
+        rationale = "Open at list; deposit required to hold — tough negotiator."
+        terms = {"deposit_pct": "20"}
+        if self.brand:
+            rationale += f" ({brand_profiles.justification(self.brand)})"
+            terms["value_justification"] = brand_profiles.justification(self.brand)
         return seller_msg(
             "open",
             price=self.state.list_price,
-            terms_delta={"deposit_pct": "20"},
-            rationale="Open at list; deposit required to hold — tough negotiator.",
+            terms_delta=terms,
+            rationale=rationale,
         )
 
     def respond(self, inbound: NegotiationMessage) -> NegotiationMessage:
         self.round += 1
+        self.intent.observe(inbound)   # B1: capture volunteered buyer intent
         if self.style == "stonewaller_no_prices_by_phone":
             return self._respond_stonewaller(inbound)
         if self.style == "hard_sell_upseller":
             return self._respond_upseller(inbound)
         return self._respond_tough(inbound)
 
+    # ── intent + credit enrichment (B1/B2 — terms_delta only, price untouched) ──
+
+    def _enrich_concede(self, terms: dict, buyer_price, my_min: float) -> dict:
+        """Ask for one missing intent signal, and — when the buyer is below what we'll
+        take and is price-sensitive — sweeten with a contingent credit instead of cutting
+        price further. Mutates only `terms_delta`; the conceded `price` is unchanged."""
+        ask = self.intent.next_ask()
+        if ask:
+            terms["ask"] = ask
+            self.intent.asked.add(ask)
+        if buyer_price is not None and buyer_price < my_min and self.intent.price_sensitive():
+            gap = my_min - buyer_price
+            conditions = "photo_review"
+            credit = seller_value.choose_credit(
+                self.state.list_price, gap, action_value=buyer_intent.ACTION_VALUE[conditions]
+            )
+            if credit:
+                terms.update(buyer_intent.commitment_terms(
+                    self.state.vendor, self.round, credit, self.state.list_price, conditions
+                ))
+        return terms
+
+    def _commitment_on_accept(self, terms: dict) -> dict:
+        """Document a small review-for-credit commitment in the accept message's terms_delta
+        (the transcript is the bilateral record; buyer echo is an optional Suman upgrade)."""
+        conditions = "photo_review"
+        credit = seller_value.choose_credit(
+            self.state.list_price, self.state.list_price * 0.05,
+            action_value=buyer_intent.ACTION_VALUE[conditions],
+        ) or 10.0
+        terms.update(buyer_intent.commitment_terms(
+            self.state.vendor, self.round, credit, self.state.list_price, conditions
+        ))
+        return terms
+
     # ── style policies (scaffold — Ella deepens) ─────────────────────────────
 
     def _respond_tough(self, inbound: NegotiationMessage) -> NegotiationMessage:
         buyer_price = inbound.price
-        my_min = seller_value.next_seller_min(self.state, self.round, self.max_rounds)
-        # Tough: concede slower (stretch the curve).
         floor = seller_value.dynamic_floor(self.state)
-        my_min = max(my_min, floor + (self.state.list_price - floor) * 0.25 * (1 - self.round / self.max_rounds))
+        my_min = self._round_min()
 
-        if buyer_price is not None and buyer_price >= my_min:
+        if self.should_accept(buyer_price):
             return seller_msg(
                 "accept",
                 price=buyer_price,
-                terms_delta={"deposit_pct": "20"},
+                terms_delta=self._commitment_on_accept({"deposit_pct": "20"}),
                 rationale=f"Buyer ${buyer_price:.0f} clears tough floor ${floor:.0f}; deposit still required.",
             )
-        if self.round >= self.max_rounds:
-            if buyer_price is not None and buyer_price >= floor:
-                return seller_msg(
-                    "accept",
-                    price=buyer_price,
-                    terms_delta={"deposit_pct": "20"},
-                    rationale=f"Final round; accept ${buyer_price:.0f} at floor ${floor:.0f}.",
-                )
+        if self.should_walk(inbound):
             return seller_msg(
                 "reject",
                 price=round(floor, 2),
@@ -96,30 +174,37 @@ class SellerAgent:
         return seller_msg(
             "concede",
             price=round(my_min, 2),
-            terms_delta={"deposit_pct": "20"},
+            terms_delta=self._enrich_concede({"deposit_pct": "20"}, buyer_price, my_min),
             rationale=f"Tough concede to ${my_min:.0f} (floor ${floor:.0f}).",
         )
 
     def _respond_stonewaller(self, inbound: NegotiationMessage) -> NegotiationMessage:
+        # At capacity → trade a longer lead time, not a phone discount (§8.4 capacity lever).
+        extra_lead = seller_value.capacity_penalty(self.state)
+        appt_terms = {"callback": "manager_within_24h", "appointment": "required"}
+        if extra_lead:
+            appt_terms["lead_time_days"] = f"{self.state.capacity.lead_time_days + extra_lead:.0f}"
+
         # Early rounds: refuse phone pricing (non-terminal counter) → callback path.
         # Using reject would end the loop; counter+empty price models "someone will call you back".
         if self.round <= 2:
             return seller_msg(
                 "counter",
                 price=None,
-                terms_delta={"callback": "manager_within_24h", "appointment": "required"},
+                terms_delta=appt_terms,
                 rationale="No prices by phone — book an appointment or we'll call you back.",
             )
         floor = seller_value.dynamic_floor(self.state)
-        my_min = seller_value.next_seller_min(self.state, self.round, self.max_rounds)
+        my_min = self._round_min()
         buyer_price = inbound.price
-        if buyer_price is not None and buyer_price >= my_min:
+        if self.should_accept(buyer_price):
             return seller_msg(
                 "accept",
                 price=buyer_price,
+                terms_delta=self._commitment_on_accept({}),
                 rationale=f"After callback friction, accept ${buyer_price:.0f}.",
             )
-        if self.round >= self.max_rounds:
+        if self.should_walk(inbound):
             # Structured ending: callback commitment (not a vague range).
             return seller_msg(
                 "reject",
@@ -130,7 +215,7 @@ class SellerAgent:
         return seller_msg(
             "concede",
             price=round(my_min, 2),
-            terms_delta={"range_note": "ballpark_only"},
+            terms_delta=self._enrich_concede({"range_note": "ballpark_only"}, buyer_price, my_min),
             rationale=f"Reluctant ballpark ${my_min:.0f} (floor ${floor:.0f}); prefer appointment.",
         )
 
@@ -138,25 +223,17 @@ class SellerAgent:
         buyer_price = inbound.price
         floor = seller_value.dynamic_floor(self.state)
         bundled = seller_value.bundled_ask(self.state)
-        # Concede by stripping add-ons first (protect gown margin), then ease base.
-        stripped = seller_value.upsell_ask(self.state, self.round, self.max_rounds)
-        my_min = max(floor, stripped)
+        my_min = self._round_min()
 
-        if buyer_price is not None and buyer_price >= my_min:
+        if self.should_accept(buyer_price):
+            bundle = {"bundle": "stripped_to_essentials"} if buyer_price < bundled else {"bundle": "full"}
             return seller_msg(
                 "accept",
                 price=buyer_price,
-                terms_delta={"bundle": "stripped_to_essentials"} if buyer_price < bundled else {"bundle": "full"},
+                terms_delta=self._commitment_on_accept(bundle),
                 rationale=f"Accept ${buyer_price:.0f} after add-on strip (floor ${floor:.0f}).",
             )
-        if self.round >= self.max_rounds:
-            if buyer_price is not None and buyer_price >= floor:
-                return seller_msg(
-                    "accept",
-                    price=buyer_price,
-                    terms_delta={"bundle": "stripped_to_essentials"},
-                    rationale=f"Final round; drop add-ons, accept ${buyer_price:.0f}.",
-                )
+        if self.should_walk(inbound):
             return seller_msg(
                 "reject",
                 price=round(floor, 2),
@@ -165,6 +242,6 @@ class SellerAgent:
         return seller_msg(
             "concede",
             price=round(my_min, 2),
-            terms_delta={"bundle": f"round_{self.round}_strip"},
+            terms_delta=self._enrich_concede({"bundle": f"round_{self.round}_strip"}, buyer_price, my_min),
             rationale=f"Upseller concede to ${my_min:.0f} by stripping optional fees.",
         )

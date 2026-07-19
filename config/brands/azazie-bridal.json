@@ -1,0 +1,29 @@
+{
+  "vendor": "Azazie Bridal",
+  "brand": {
+    "positioning": "direct-to-consumer value",
+    "specialties": ["made-to-measure at scale", "500+ color swatches"],
+    "heritage": "Online-first bridal with try-at-home sampling and factory-direct pricing."
+  },
+  "returns_refunds": {
+    "window_days": 7,
+    "restocking_fee_pct": 15,
+    "notes": "Standard-size returns within 7 days minus restocking; custom sizing is final sale. Earned credits and coupons are promotional and are NOT refunded."
+  },
+  "service_sla": {
+    "support_response_hours": 24,
+    "alteration_weeks": 3,
+    "shipping_days": 10,
+    "lead_time_days": 21,
+    "lifetime_alterations": false,
+    "justifications": {
+      "shipping_days": "Factory-direct from the atelier; expedite available for a rush fee."
+    }
+  },
+  "upsell_catalog": [
+    {"name": "matching veil", "price": 79, "code": "veil_match"},
+    {"name": "detachable bridal cape", "price": 129, "code": "cape"},
+    {"name": "satin gloves", "price": 39, "code": "gloves"},
+    {"name": "pearl hair pins set", "price": 45, "code": "hair"}
+  ]
+}
