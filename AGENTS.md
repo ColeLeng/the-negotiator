@@ -2,7 +2,7 @@
 
 ## Cursor Cloud specific instructions
 
-"The Negotiator" is a single-product Python + Next.js demo. The negotiation engine
+"Citable Negotiator" is a single-product Python + Next.js demo. The negotiation engine
 runs **on in-process mocks** — no API keys are required for the default path.
 Optional search keys (`TAVILY_API_KEY`, `SERPER_API_KEY`, `BRAVE_API_KEY`,
 `EXA_API_KEY`) upgrade the Caller to live web results when present.

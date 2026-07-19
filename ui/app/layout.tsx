@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "The Negotiator",
+  title: "Citable Negotiator",
   description:
     "Voice agents that call, compare, and haggle — watch a real price move.",
 };

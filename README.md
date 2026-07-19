@@ -1,8 +1,8 @@
-# The Negotiator
+# Citable Negotiator
 
 > **Voice agents that call, compare, and haggle — pick your market, never overpay again.**
 
-Built for the **Hack-Nation 6th Global AI Hackathon** — Challenge 01, *The Negotiator*, powered by **ElevenLabs** (with the MIT Club of Northern California and the MIT Club of Germany).
+Built for the **Hack-Nation 6th Global AI Hackathon** — Challenge 01, *The Negotiator*, powered by **ElevenLabs** (with the MIT Club of Northern California and the MIT Club of Germany). Product name: **Citable Negotiator**.
 
 An agent-to-agent negotiation system that takes a customer's requirements for a **high-consideration, quote-based product**, finds **real comparable options**, and runs **live multi-round negotiations** with seller agents — trading flexible attributes against price via ZOPA logic — then returns a ranked recommendation backed by call transcripts. The pitch-critical thing we show live: **a real price that actually moves during a negotiation**, driven by dynamics, not a script.
 
