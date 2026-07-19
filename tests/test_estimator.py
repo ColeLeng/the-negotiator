@@ -357,6 +357,44 @@ def test_intent_from_conversation_uses_recorded_transcript(monkeypatch):
     assert "target_price" not in intent["caller_dynamic_variables"]
 
 
+def test_intent_from_conversation_parses_aliased_submission_json(monkeypatch):
+    """A real agent submission with aliased/flat keys (dress_size_us, max_price,
+    days_to_delivery, priorities as objects, no attributes wrapper) must still map onto
+    the correct intent — deterministically, without needing an LLM."""
+    import negotiator.voice_intake as vi
+
+    agent_submission = """Great — I'll start shopping for this.
+    {
+      "silhouette": "A-line", "color": "Ivory", "dress_size_us": 8,
+      "days_to_delivery": 120, "acquisition_channel": "sample_sale_or_preowned",
+      "fabric": "Lace", "sleeve": "Long sleeve", "neckline": "Sweetheart",
+      "designer": "Pronovias", "customization": null,
+      "target_price": 1500, "max_price": 2200,
+      "priorities": [
+        {"attribute": "designer", "value": "Pronovias"},
+        {"attribute": "silhouette", "value": "A-line"},
+        {"attribute": "color", "value": "Ivory"}
+      ]
+    }"""
+    convo = {"transcript": [
+        {"role": "agent", "message": "Reading it back… does that sound right?"},
+        {"role": "user", "message": "Yes, that's exactly right — go ahead."},
+        {"role": "agent", "message": agent_submission},
+    ]}
+    monkeypatch.setattr(vi, "fetch_conversation", lambda cid: convo)
+
+    intent = vi.intent_from_conversation("conv_x", vertical="wedding-dress")
+    assert intent["budget"]["target_price"] == 1500.0
+    assert intent["budget"]["reservation_price"] == 2200.0     # from max_price alias
+    assert intent["timeline"]["deadline_days"] == 120          # from days_to_delivery alias
+    by_name = {m["attribute"]: m["value"] for m in intent["must_haves"]}
+    assert by_name.get("size", "").upper().replace(" ", "") == "US8"   # from dress_size_us: 8
+    # priority objects -> ranked keys; designer first.
+    assert intent["priority_order"][0] == "designer"
+    # caller stage still never anchors price.
+    assert "target_price" not in intent["caller_dynamic_variables"]
+
+
 def test_transcript_to_text_flattens_roles():
     from negotiator.voice_intake import transcript_to_text
     convo = {"transcript": [

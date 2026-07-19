@@ -25,7 +25,7 @@ _ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
 TOOL_NAME = "submit_intake"
 
 
-def build_agent_config(vertical: str) -> dict:
+def build_agent_config(vertical: str, with_tool: bool = True) -> dict:
     """
     The ElevenLabs Conversational AI agent config for the buyer-facing INTAKE agent:
     a buyer-facing greeting as the first message (`intakeGreeting`, falling back to the
@@ -43,24 +43,47 @@ def build_agent_config(vertical: str) -> dict:
         f["key"] for f in fields
         if f.get("type") != "date" and f.get("constraint", "hard" if f.get("required", True) else "soft") == "soft"
     ]
-    questions = "\n".join(f"- {f['prompt']}" for f in fields)
+    hard_keys = [
+        f["key"] for f in fields
+        if f.get("constraint", "hard" if f.get("required", True) else "soft") == "hard"
+    ]
+    questions = "\n".join(f"- {f['key']}: {f['prompt']}" for f in fields)
     system_prompt = (
-        f"You are a friendly personal shopping assistant helping a buyer describe a "
-        f"{vcfg.get('displayName', vertical)} purchase, before any vendor is contacted. "
-        f"Gather the details below, one at a time, in natural conversation — skip "
-        f"anything the buyer already answered, and don't read this list aloud:\n"
-        f"{questions}\n\n"
-        f"Also get: the buyer's target price (what they hope to pay), their hard "
-        f"walk-away maximum, and how many days they have.\n"
-        f"Then ask which two or three things matter MOST to them (for example: price, "
-        f"or a specific look/brand) so we can prioritize while negotiating.\n\n"
-        f"Before finishing, briefly read back the key details so the buyer can confirm "
-        f"or correct them. When confirmed, call {TOOL_NAME} with what you collected — "
-        f"use null for anything the buyer didn't give you, and put the most-important "
-        f"soft attributes in `priorities`, most important first (use these exact keys: "
-        f"{', '.join(soft_keys) or 'none'}). Never invent a number or a fact the buyer "
-        f"didn't state."
+        f"You are a warm, efficient personal shopping assistant helping a buyer describe "
+        f"a {vcfg.get('displayName', vertical)} purchase before any vendor is contacted. "
+        f"Your job is to collect a short, structured brief — quickly and without "
+        f"repeating yourself.\n\n"
+        f"WHAT TO COLLECT (don't read this list aloud):\n{questions}\n"
+        f"- budget: the target price (what they hope to pay) AND their hard maximum\n"
+        f"- timeline: how many days until they need it (or the event date)\n"
+        f"- priorities: which 2–3 things matter MOST (e.g. the designer look, the "
+        f"silhouette, the price)\n\n"
+        f"CONVERSATION RULES (important):\n"
+        f"1. Ask ONE question per turn, in natural language.\n"
+        f"2. NEVER ask about something the buyer already told you. Track what you have "
+        f"and only ask for what's still missing. Do not repeat a question you've asked.\n"
+        f"3. Must-haves come first: {', '.join(hard_keys) or 'the essentials'} and the "
+        f"budget. Style details are nice-to-have — ask a couple, but if the buyer is "
+        f"vague or says 'no preference', accept that and MOVE ON. Don't grill them.\n"
+        f"4. If the buyer corrects something (e.g. changes the color), acknowledge the "
+        f"change once and update it — don't re-ask the earlier question.\n"
+        f"5. If the buyer is briefly silent, wait patiently; prompt gently at most once, "
+        f"then keep going. Never nag.\n"
+        f"6. When you have the must-haves, budget, and priorities, read the brief back "
+        f"ONCE, concisely, and ask the buyer to confirm or correct.\n"
+        f"7. After they confirm, say one short closing line (e.g. \"Great — I'll start "
+        f"shopping for this.\"). Do NOT say the words 'JSON', field names, code, or "
+        f"numbers-as-data aloud. Never invent a value the buyer didn't state.\n"
     )
+    if with_tool:
+        system_prompt += (
+            f"\nWhen (and only when) the buyer has confirmed, call the {TOOL_NAME} tool "
+            f"with what you collected: put the item details under `attributes` (use these "
+            f"exact keys: {', '.join(f['key'] for f in fields)}), set `target_price` and "
+            f"`reservation_price` (the hard maximum) and `deadline_days`, and list the "
+            f"most-important soft attributes in `priorities` (most important first, using "
+            f"the keys: {', '.join(soft_keys) or 'none'}). Use null for anything not stated."
+        )
     tool = {
         "name": TOOL_NAME,
         "description": "Submit the structured, buyer-confirmed job spec gathered so far.",
@@ -83,13 +106,16 @@ def build_agent_config(vertical: str) -> dict:
             "required": ["attributes"],
         },
     }
+    agent_cfg = {
+        "first_message": vcfg.get("intakeGreeting") or vcfg.get("disclosure", ""),
+        "prompt": {"prompt": system_prompt, "tools": [tool] if with_tool else []},
+    }
     return {
         "name": f"Intake — {vcfg.get('displayName', vertical)}",
         "conversation_config": {
-            "agent": {
-                "first_message": vcfg.get("intakeGreeting") or vcfg.get("disclosure", ""),
-                "prompt": {"prompt": system_prompt, "tools": [tool]},
-            },
+            # Patient turn-taking so the agent doesn't nag on brief silences.
+            "turn": {"turn_timeout": 15, "mode": "turn"},
+            "agent": agent_cfg,
         },
     }
 
@@ -262,11 +288,107 @@ def transcript_to_text(conversation: dict) -> str:
 
 
 def intent_from_conversation(conversation_id: str, vertical: Optional[str] = None) -> dict:
-    """Post-call path: fetch a recorded ElevenLabs intake call, run its transcript
-    through `estimate()`, and return the buyer-intent JSON handoff. Extraction is much
-    sharper with ANTHROPIC_API_KEY set (LLM extraction) than with the keyless heuristic."""
-    text = transcript_to_text(fetch_conversation(conversation_id))
+    """Post-call path: fetch a recorded ElevenLabs intake call and return the buyer-intent
+    JSON handoff. If the transcript contains a structured submission JSON (the agent's
+    end-of-call payload), parse it deterministically (schema-tolerant); otherwise fall
+    back to running the transcript text through `estimate()` (sharper with ANTHROPIC_API_KEY)."""
+    conversation = fetch_conversation(conversation_id)
+    text = transcript_to_text(conversation)
+
+    submission = _extract_submission_json(text)
+    if submission is not None:
+        tool_args = _normalize_submission(submission, vertical=vertical)
+        return to_buyer_intent(handle_tool_call(tool_args, vertical=vertical))
+
     return to_buyer_intent(estimate(text, vertical=vertical))
+
+
+# Aliases the agent LLM commonly invents for our canonical keys.
+_SUBMISSION_ALIASES = {
+    "max_price": "reservation_price",
+    "maximum_price": "reservation_price",
+    "hard_max": "reservation_price",
+    "hard_maximum": "reservation_price",
+    "walkaway_price": "reservation_price",
+    "days_to_delivery": "deadline_days",
+    "delivery_days": "deadline_days",
+    "lead_time_days": "deadline_days",
+    "dress_size_us": "size",
+    "size_us": "size",
+    "us_size": "size",
+}
+
+
+def _extract_submission_json(text: str) -> Optional[dict]:
+    """Find the last JSON object in the transcript (the agent's end-of-call submission).
+    Returns None if there isn't a parseable one."""
+    import json
+
+    depth, start, candidates = 0, None, []
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}" and depth > 0:
+            depth -= 1
+            if depth == 0 and start is not None:
+                candidates.append(text[start : i + 1])
+    for blob in reversed(candidates):
+        try:
+            obj = json.loads(blob)
+            if isinstance(obj, dict):
+                return obj
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def _normalize_submission(obj: dict, vertical: Optional[str] = None) -> dict:
+    """Map a loose/aliased agent submission onto our submit_intake tool_args shape:
+    {attributes:{<spec keys>}, target_price, reservation_price, deadline_days, priorities:[keys]}.
+    Tolerates flat layouts, aliased keys, {attribute,value} priority objects, and numeric
+    size values."""
+    vertical = vertical or os.getenv("VERTICAL", "wedding-dress")
+    spec_keys = [f["key"] for f in load_vertical_config(vertical).get("specFields", [])]
+
+    canon: dict = {}
+    for key, val in obj.items():
+        canon[_SUBMISSION_ALIASES.get(key, key)] = val
+
+    nested = canon.get("attributes") if isinstance(canon.get("attributes"), dict) else {}
+    attributes: dict = {}
+    for k in spec_keys:
+        v = nested.get(k, canon.get(k))
+        if v is None or v == "":
+            continue
+        if k == "size" and not isinstance(v, str):
+            v = f"US {v}"
+        elif k == "size" and str(v).strip().isdigit():
+            v = f"US {str(v).strip()}"
+        attributes[k] = str(v)
+
+    priorities = canon.get("priorities")
+    if isinstance(priorities, list):
+        priorities = [
+            (p.get("attribute") if isinstance(p, dict) else p)
+            for p in priorities
+        ]
+        priorities = [p for p in priorities if p]
+
+    def _num(x):
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return None
+
+    return {
+        "attributes": attributes,
+        "target_price": _num(canon.get("target_price")),
+        "reservation_price": _num(canon.get("reservation_price")),
+        "deadline_days": (int(canon["deadline_days"]) if str(canon.get("deadline_days") or "").strip().isdigit() else None),
+        "priorities": priorities,
+    }
 
 
 def _flatten_tool_args(tool_args: dict) -> str:
