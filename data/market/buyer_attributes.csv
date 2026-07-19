@@ -1,0 +1,5 @@
+scenario_id,name,value,constraint,weight,substitutions
+spec_market,color,ivory,soft,0.15,champagne;off-white
+spec_market,size,US 8,hard,,
+spec_market,silhouette,A-line,soft,0.20,fit-and-flare;sheath
+spec_market,fabric,satin,soft,0.10,mikado;crepe;lace
