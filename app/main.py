@@ -156,8 +156,24 @@ _TRACE_VIEW_PATH = Path(__file__).resolve().parent / "static" / "trace.html"
 
 
 def _run_demo_traced(tracer: Tracer) -> dict:
+    tracer.emit("stage", actor="estimator", label=f'Estimator: parsing "{_DEMO_INPUT}"')
     spec = estimate(_DEMO_INPUT)
+    tracer.emit(
+        "stage", actor="estimator",
+        label=f"ProductSpec {spec.spec_id} ready — target ${spec.negotiation.target_price:,.0f} "
+              f"/ reservation ${spec.negotiation.reservation_price:,.0f}",
+        price=spec.negotiation.target_price,
+        detail={"spec_id": spec.spec_id},
+    )
+
+    tracer.emit("stage", actor="caller", label="Caller: fanning out for comparable vendors…")
     ranked = search(spec)
+    tracer.emit(
+        "stage", actor="caller",
+        label=f"Caller: {len(ranked.options)} ranked options found",
+        detail={"option_count": len(ranked.options)},
+    )
+
     result = orchestrator.run(ranked, spec, tracer=tracer)
     return {
         "spec": spec.model_dump(by_alias=True),

@@ -58,6 +58,15 @@ def run_negotiation(
         log(inbound)
         if inbound.price is not None:
             blackboard.post(session.session_id, inbound.price)
+            if tracer is not None:
+                tracer.emit(
+                    "blackboard_update",
+                    actor="blackboard",
+                    session_id=session.session_id,
+                    option_id=session.option_id,
+                    label=f"Blackboard: posted ${inbound.price:,.0f} for {session.session_id}",
+                    price=inbound.price,
+                )
 
         if inbound.intent == "accept":
             session.status = "agreed"
