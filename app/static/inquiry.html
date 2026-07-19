@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Negotiator — Scenario 2 · Quote Gathering</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --page:        #0d0d0d;
+    --surface:     #1a1a19;
+    --surface-2:   #202020;
+    --text-1:      #ffffff;
+    --text-2:      #c3c2b7;
+    --muted:       #898781;
+    --gridline:    #2c2c2a;
+    --border:      rgba(255,255,255,0.14);
+
+    --spec:        #3987e5;
+    --buyer:       #3987e5;
+    --pool:        #9085e9;
+    --verify:      #c98500;
+    --shortlist:   #0ca30c;
+
+    --transparent:    #199e70;
+    --guarded:        #3987e5;
+    --stonewaller:    #898781;
+    --upseller:       #c98500;
+    --lowball_teaser: #d95926;
+
+    --good:     #0ca30c;
+    --warning:  #fab219;
+    --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f1f0ec;
+      --text-1: #0b0b0b; --text-2: #52514e; --muted: #898781;
+      --gridline: #e1e0d9; --border: rgba(11,11,11,0.14);
+      --spec: #2a78d6; --buyer: #2a78d6; --pool: #4a3aa7; --verify: #eda100; --shortlist: #0ca30c;
+      --transparent: #1baf7a; --guarded: #2a78d6; --stonewaller: #898781; --upseller: #eda100; --lowball_teaser: #eb6834;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--text-1);
+    font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); flex: none;
+  }
+  header h1 { font-size: 14px; font-weight: 600; margin: 0; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+    border-radius: 999px; border: 1px solid var(--border); font-size: 11px; color: var(--text-2);
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--muted); }
+  .pill.live .dot { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+  .pill.done .dot { background: var(--spec); }
+  .pill.error .dot { background: var(--critical); }
+  button.reconnect {
+    margin-left: auto; background: var(--surface-2); color: var(--text-1);
+    border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+  }
+  button.reconnect:hover { border-color: var(--muted); }
+
+  main {
+    flex: 1; display: grid; grid-template-rows: auto auto auto minmax(0,1fr) auto;
+    gap: 10px; padding: 12px 16px 14px; min-height: 0;
+  }
+  .section-label {
+    color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label .count { color: var(--text-2); text-transform: none; letter-spacing: 0; }
+
+  /* -------- architecture diagram -------- */
+  #diagram-wrap {
+    position: relative; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 14px 14px;
+  }
+  #diagram-canvas { position: relative; height: 190px; }
+  #diagram-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .node {
+    position: absolute; border: 1.5px solid var(--border); border-radius: 9px; background: var(--surface-2);
+    padding: 7px 9px; transition: border-color 150ms, box-shadow 150ms, background 150ms;
+  }
+  .node .title { font-size: 11.5px; font-weight: 600; color: var(--text-1); }
+  .node .subtitle { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .node.pulse {
+    border-color: var(--node-color, var(--text-1));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-color, var(--text-1)) 30%, transparent);
+    background: color-mix(in srgb, var(--node-color, var(--text-1)) 12%, var(--surface-2));
+  }
+  .node .badge {
+    position: absolute; top: -8px; right: -8px; min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 999px; background: var(--node-color, var(--muted)); color: #fff;
+    font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* -------- pool summary -------- */
+  #summary { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 6px 12px; display: flex; flex-direction: column; min-width: 96px;
+  }
+  .stat .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .stat .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* -------- seller grid -------- */
+  #sellers {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 8px; overflow-y: auto; align-content: start; padding-right: 4px;
+  }
+  .seller {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--persona, var(--muted));
+    border-radius: 10px; padding: 8px 11px; transition: box-shadow 150ms, opacity 200ms, border-color 150ms;
+  }
+  .seller.pulse { box-shadow: 0 0 0 3px color-mix(in srgb, var(--persona) 28%, transparent); }
+  .seller.dropped { opacity: 0.45; }
+  .seller.dropped .vendor .name { text-decoration: line-through; }
+  .seller.kept { border-color: color-mix(in srgb, var(--good) 60%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--good) 45%, transparent); }
+  .seller .vendor { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+  .seller .vendor .name { font-size: 12.5px; font-weight: 600; }
+  .seller .persona-tag {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--persona);
+    border: 1px solid color-mix(in srgb, var(--persona) 45%, transparent); border-radius: 999px; padding: 1px 6px; flex: none;
+  }
+  .seller .say { font-size: 11px; color: var(--text-2); margin-top: 4px; min-height: 30px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .seller .row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+  .seller .price { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .seller .status {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.03em; padding: 1px 7px;
+    border-radius: 999px; border: 1px solid var(--border); color: var(--text-2); flex: none;
+  }
+  .status.verified   { color: var(--good);     border-color: color-mix(in srgb, var(--good) 55%, transparent); }
+  .status.flagged    { color: var(--warning);  border-color: color-mix(in srgb, var(--warning) 55%, transparent); }
+  .status.no_price   { color: var(--muted); }
+  .status.infeasible { color: var(--lowball_teaser); border-color: color-mix(in srgb, var(--lowball_teaser) 55%, transparent); }
+  .status.red_flag   { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 55%, transparent); }
+  .seller .flags { font-size: 9.5px; color: var(--muted); margin-top: 3px; min-height: 12px; }
+
+  /* -------- latest turn -------- */
+  #latest {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 9px 14px; display: flex; align-items: center; gap: 12px; min-height: 42px;
+  }
+  #latest .tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 2px 8px; border-radius: 6px; background: var(--surface-2); color: var(--text-2); flex: none; }
+  #latest .text { flex: 1; color: var(--text-1); }
+  #sellers::-webkit-scrollbar { width: 8px; }
+  #sellers::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 4px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>The Negotiator</h1>
+    <span class="sub">Scenario 2 · buyer gathers &amp; verifies quotes from 12 seller agents</span>
+    <span id="status-pill" class="pill"><span class="dot"></span><span id="status-label">connecting…</span></span>
+    <button class="reconnect" id="reconnect">Run again</button>
+  </header>
+  <main>
+    <div class="section-label">Workflow — buyer inquiry → evidence pool → shortlist</div>
+    <div id="diagram-wrap"><div id="diagram-canvas"></div></div>
+
+    <div id="summary">
+      <div class="stat"><span class="k">contacted</span><span class="v" id="s-contacted">0</span></div>
+      <div class="stat"><span class="k">firm quotes</span><span class="v" id="s-firm">0</span></div>
+      <div class="stat"><span class="k">verified</span><span class="v" id="s-verified">0</span></div>
+      <div class="stat"><span class="k">median all-in</span><span class="v" id="s-median">—</span></div>
+      <div class="stat"><span class="k">shortlisted</span><span class="v" id="s-short">0</span></div>
+    </div>
+
+    <div class="section-label">Seller agents <span class="count" id="sellers-count"></span></div>
+    <div id="sellers"></div>
+
+    <div id="latest">
+      <span class="tag" id="latest-tag">latest</span>
+      <span class="text" id="latest-text">waiting for the run to start…</span>
+    </div>
+  </main>
+
+  <script>
+    // Diagram: requirements → buyer inquiry → 5 persona lanes → pool → verify → shortlist.
+    const NODES = [
+      { id: "spec",         title: "Requirements",  subtitle: "ProductSpec (JSON)",       x: 1,  y: 6,  w: 15, color: "--spec" },
+      { id: "buyer",        title: "Buyer Inquiry", subtitle: "asks · presses · records", x: 19, y: 6,  w: 16, color: "--buyer" },
+      { id: "pool",         title: "Evidence Pool", subtitle: "itemized quotes",          x: 55, y: 6,  w: 14, color: "--pool" },
+      { id: "verify",       title: "Verify",        subtitle: "sticker + benchmark",      x: 71, y: 6,  w: 13, color: "--verify" },
+      { id: "shortlist",    title: "Shortlist",     subtitle: "top 3–5 → Scenario 3",     x: 86, y: 6,  w: 13, color: "--shortlist" },
+
+      { id: "transparent",    title: "Transparent",  subtitle: "itemizes up front", x: 12, y: 58, w: 15, color: "--transparent" },
+      { id: "guarded",        title: "Guarded",      subtitle: "base until pressed", x: 29, y: 58, w: 15, color: "--guarded" },
+      { id: "stonewaller",    title: "Stonewaller",  subtitle: "no phone prices",   x: 46, y: 58, w: 15, color: "--stonewaller" },
+      { id: "upseller",       title: "Upseller",     subtitle: "inflated bundle",   x: 63, y: 58, w: 15, color: "--upseller" },
+      { id: "lowball_teaser", title: "Lowball",      subtitle: "fake-low teaser",   x: 80, y: 58, w: 15, color: "--lowball_teaser" },
+    ];
+    const EDGES = [
+      ["spec", "buyer"],
+      ["buyer", "transparent", true], ["buyer", "guarded", true], ["buyer", "stonewaller", true],
+      ["buyer", "upseller", true], ["buyer", "lowball_teaser", true],
+      ["buyer", "pool"], ["pool", "verify"], ["verify", "shortlist"],
+    ];
+    const PERSONAS = ["transparent", "guarded", "stonewaller", "upseller", "lowball_teaser"];
+
+    const canvas = document.getElementById("diagram-canvas");
+    const nodeEls = {};
+    function renderDiagram() {
+      canvas.innerHTML = "";
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 100 100");
+      svg.setAttribute("preserveAspectRatio", "none");
+      svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"></path></marker></defs>`;
+      const byId = Object.fromEntries(NODES.map((n) => [n.id, n]));
+      for (const [fromId, toId, bidir] of EDGES) {
+        const a = byId[fromId], b = byId[toId];
+        const sameRow = Math.abs(a.y - b.y) < 1;
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        let d;
+        if (sameRow) {
+          d = `M ${a.x + a.w} ${a.y + 5} L ${b.x} ${b.y + 5}`;
+        } else {
+          const ay = a.y + 10, by = b.y, midY = (ay + by) / 2;
+          d = `M ${a.x + a.w / 2} ${ay} L ${a.x + a.w / 2} ${midY} L ${b.x + b.w / 2} ${midY} L ${b.x + b.w / 2} ${by}`;
+        }
+        p.setAttribute("d", d); p.setAttribute("fill", "none");
+        p.setAttribute("stroke", "var(--gridline)"); p.setAttribute("stroke-width", "0.5");
+        p.setAttribute("marker-end", "url(#arrow)");
+        if (bidir) p.setAttribute("marker-start", "url(#arrow)");
+        svg.appendChild(p);
+      }
+      canvas.appendChild(svg);
+      for (const n of NODES) {
+        const el = document.createElement("div");
+        el.className = "node";
+        el.style.setProperty("--node-color", `var(${n.color})`);
+        Object.assign(el.style, { left: n.x + "%", top: n.y + "%", width: n.w + "%" });
+        el.innerHTML = `<div class="title">${n.title}</div><div class="subtitle">${n.subtitle}</div>` +
+          (PERSONAS.includes(n.id) ? `<div class="badge" style="display:none">0</div>` : "");
+        canvas.appendChild(el);
+        nodeEls[n.id] = el;
+      }
+    }
+    function pulse(id) {
+      const el = nodeEls[id]; if (!el) return;
+      el.classList.add("pulse");
+      clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("pulse"), 650);
+    }
+    function bumpPersona(persona) {
+      const el = nodeEls[persona]; if (!el) return;
+      const b = el.querySelector(".badge"); if (!b) return;
+      b.style.display = "flex"; b.textContent = (parseInt(b.textContent || "0", 10) + 1);
+    }
+
+    // ---- seller cards + SSE ----
+    const sellersEl = document.getElementById("sellers");
+    const sellers = new Map();
+    let es = null;
+
+    const $ = (id) => document.getElementById(id);
+    function setStatus(kind, text) { $("status-pill").className = "pill " + kind; $("status-label").textContent = text; }
+    function fmtUsd(n) {
+      if (n === null || n === undefined || Number.isNaN(n)) return "—";
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+    }
+    function card(optionId, vendor, persona) {
+      const el = document.createElement("div");
+      el.className = "seller";
+      el.style.setProperty("--persona", `var(--${persona})`);
+      el.innerHTML =
+        `<div class="vendor"><span class="name">${vendor}</span><span class="persona-tag">${(persona||"").replace("_"," ")}</span></div>
+         <div class="say">…dialing</div>
+         <div class="row"><span class="price">—</span><span class="status">inquiring</span></div>
+         <div class="flags"></div>`;
+      sellersEl.appendChild(el);
+      const s = {
+        el, sayEl: el.querySelector(".say"), priceEl: el.querySelector(".price"),
+        statusEl: el.querySelector(".status"), flagsEl: el.querySelector(".flags"),
+      };
+      sellers.set(optionId, s);
+      $("sellers-count").textContent = sellers.size + " contacted";
+      return s;
+    }
+    function getCard(optionId, vendor, persona) {
+      return sellers.get(optionId) || card(optionId, vendor, persona || "stonewaller");
+    }
+
+    function handle(evt) {
+      const d = evt.detail || {};
+      $("latest-tag").textContent = (evt.actor || evt.kind || "").replace("_", " ");
+      $("latest-text").textContent = evt.label || "";
+
+      if (evt.kind === "inquiry_start") {
+        pulse("buyer"); if (d.persona) pulse(d.persona);
+        getCard(evt.option_id, evt.vendor, d.persona);
+      } else if (evt.kind === "disclosure") {
+        const persona = d.persona;
+        const s = getCard(evt.option_id, evt.vendor, persona);
+        if (d.persona) { pulse(d.persona); bumpPersona(d.persona); }
+        pulse("buyer");
+        s.el.classList.add("pulse"); setTimeout(() => s.el.classList.remove("pulse"), 500);
+        if (d.text) s.sayEl.textContent = "“" + d.text + "”";
+        if (evt.price != null) s.priceEl.textContent = fmtUsd(evt.price);
+        if (d.intent) { s.statusEl.textContent = (d.intent || "").replace(/_/g," "); s.statusEl.className = "status"; }
+      } else if (evt.kind === "evidence") {
+        pulse("pool");
+        const s = getCard(evt.option_id, evt.vendor, d.persona);
+        if (evt.price != null) s.priceEl.textContent = fmtUsd(evt.price);
+      } else if (evt.kind === "verification") {
+        pulse("verify");
+        const s = getCard(evt.option_id, evt.vendor);
+        if (evt.price != null) s.priceEl.textContent = fmtUsd(evt.price);
+        const st = d.status || "";
+        s.statusEl.textContent = st.replace("_", " ");
+        s.statusEl.className = "status " + st;
+        const fl = (d.red_flags && d.red_flags.length ? d.red_flags : d.flags) || [];
+        s.flagsEl.textContent = fl.length ? "⚑ " + fl.join(", ") : (d.notes || "");
+      } else if (evt.kind === "prune") {
+        const s = sellers.get(evt.option_id); if (s) s.el.classList.add("dropped");
+      } else if (evt.kind === "shortlist") {
+        pulse("shortlist");
+        const kept = (d.kept || []);
+        kept.forEach((id) => { const s = sellers.get(id); if (s) s.el.classList.add("kept"); });
+        $("s-short").textContent = kept.length;
+      } else if (evt.kind === "pool_summary") {
+        pulse("pool");
+        const x = d || {};
+        $("s-contacted").textContent = x.contacted ?? "0";
+        $("s-firm").textContent = x.firm_quotes ?? "0";
+        $("s-verified").textContent = x.verified ?? "0";
+        $("s-median").textContent = fmtUsd(x.median_comparable);
+      }
+    }
+
+    function connect() {
+      sellers.clear(); sellersEl.innerHTML = "";
+      ["s-contacted","s-firm","s-verified","s-short"].forEach((id)=>$(id).textContent="0");
+      $("s-median").textContent = "—"; $("sellers-count").textContent = "";
+      Object.values(nodeEls).forEach((el) => { el.classList.remove("pulse"); const b=el.querySelector(".badge"); if(b){b.style.display="none";b.textContent="0";} });
+      $("latest-text").textContent = "waiting for the run to start…";
+      setStatus("live", "connecting…");
+      if (es) es.close();
+      es = new EventSource("/inquiry/stream");
+      es.addEventListener("trace", (ev) => { setStatus("live", "live"); handle(JSON.parse(ev.data)); });
+      es.addEventListener("done", () => { setStatus("done", "done"); es.close(); });
+      es.onerror = () => { setStatus("error", "disconnected — click Run again"); es.close(); };
+    }
+
+    renderDiagram();
+    document.getElementById("reconnect").addEventListener("click", connect);
+    connect();
+  </script>
+</body>
+</html>

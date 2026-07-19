@@ -246,7 +246,7 @@ async def inquiry_stream(keep: int = 5) -> StreamingResponse:
                 if event is None:
                     break
                 yield _sse("trace", event.to_dict())
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(0.16)
         finally:
             await task
         yield _sse("done", {})
@@ -408,3 +408,14 @@ def trace_view() -> FileResponse:
     this in one window and the transcript UI (ui/) in another for the dual-screen
     demo recording."""
     return FileResponse(_TRACE_VIEW_PATH)
+
+
+_INQUIRY_VIEW_PATH = Path(__file__).resolve().parent / "static" / "inquiry.html"
+
+
+@app.get("/inquiry/view")
+def inquiry_view() -> FileResponse:
+    """Scenario 2 visualization — a self-contained page (no build step) that shows the
+    buyer inquiry agent talking to the 12 seller personas, building the evidence pool,
+    and pruning to the shortlist, driven live by GET /inquiry/stream."""
+    return FileResponse(_INQUIRY_VIEW_PATH)
