@@ -48,45 +48,89 @@ def _quote_from_disclosures(
     )
 
 
-def _run_inquiry(
-    seller: MarketSeller, tracer: Optional[Tracer]
-) -> tuple[Optional[float], Disclosure, int]:
-    """Drive one buyer ⇄ seller inquiry to its final disclosure; trace every turn."""
-    agent = InquirySellerAgent(seller)
-    if tracer is not None:
-        tracer.emit(
-            "inquiry_start",
-            actor="buyer",
-            option_id=seller.option_id,
-            vendor=seller.vendor,
-            label=f"Buyer → {seller.vendor}: requesting an itemized quote",
-            detail={"persona": seller.persona},
-        )
+def _opening_ask(spec: ProductSpec) -> str:
+    want = spec.negotiation.must_have_summary or "the gown"
+    return (
+        f"Hi — I'm an assistant comparing quotes for {want}, budget up to "
+        f"${spec.negotiation.reservation_price:,.0f}. Can you give me an itemized quote?"
+    )
 
-    headline: Optional[float] = None
-    final: Optional[Disclosure] = None
-    turns = 0
-    while True:
-        d = agent.next_disclosure()
-        if d is None:
-            break
-        turns += 1
-        if headline is None:
-            headline = d.headline_price
-        final = d
-        if tracer is not None:
-            price_str = f" ${d.headline_price:,.0f}" if d.headline_price is not None else ""
-            tracer.emit(
-                "disclosure",
-                actor="seller",
-                option_id=seller.option_id,
-                vendor=seller.vendor,
-                label=f"{seller.vendor} ({seller.persona}) {d.intent}{price_str}",
-                price=d.headline_price,
-                detail={"intent": d.intent, "text": d.text, "terms": d.terms},
-            )
-    assert final is not None
-    return headline, final, turns
+
+def _followup_ask(prev_intent: Optional[str]) -> str:
+    """The buyer's next-turn utterance, chosen from how the seller just answered."""
+    if prev_intent == "quote":
+        return "Thanks — can you itemize every fee (alterations, veil, rush, shipping, deposit) so I can compare like-for-like?"
+    if prev_intent == "itemized_quote":
+        return "Which of those are optional? Please strip them and give me the gown all-in."
+    if prev_intent == "refuse":
+        return "I understand you prefer in-store — can you give me even a rough ballpark so I can compare?"
+    return "Can you give me your best comparable, itemized number?"
+
+
+def _emit_disclosure(tracer: Tracer, seller: MarketSeller, d: Disclosure) -> None:
+    price_str = f" ${d.headline_price:,.0f}" if d.headline_price is not None else ""
+    tracer.emit(
+        "disclosure",
+        actor="seller",
+        option_id=seller.option_id,
+        vendor=seller.vendor,
+        label=f"{seller.vendor} ({seller.persona}) {d.intent}{price_str}",
+        price=d.headline_price,
+        detail={"intent": d.intent, "text": d.text, "terms": d.terms, "persona": seller.persona},
+    )
+
+
+class _CallState:
+    """Live state of one buyer ⇄ seller call while it's in flight."""
+
+    __slots__ = ("seller", "agent", "headline", "final", "turns", "prev_intent", "done")
+
+    def __init__(self, seller: MarketSeller):
+        self.seller = seller
+        self.agent = InquirySellerAgent(seller)
+        self.headline: Optional[float] = None
+        self.final: Optional[Disclosure] = None
+        self.turns = 0
+        self.prev_intent: Optional[str] = None
+        self.done = False
+
+
+def _advance(st: _CallState, tracer: Optional[Tracer]) -> None:
+    """Play one buyer-ask → seller-reply exchange for a single call."""
+    agent = st.agent
+    # A follow-up buyer question precedes every turn after the opener (only if the
+    # seller still has something to say — no dangling questions).
+    if st.turns >= 1 and agent.has_next() and tracer is not None:
+        ask = _followup_ask(st.prev_intent)
+        tracer.emit(
+            "buyer_ask", actor="buyer", option_id=st.seller.option_id, vendor=st.seller.vendor,
+            label=f"Buyer → {st.seller.vendor}: {ask}", detail={"text": ask},
+        )
+    d = agent.next_disclosure()
+    if d is None:
+        st.done = True
+        _emit_call_end(tracer, st)
+        return
+    st.turns += 1
+    if st.headline is None:
+        st.headline = d.headline_price
+    st.final = d
+    st.prev_intent = d.intent
+    if tracer is not None:
+        _emit_disclosure(tracer, st.seller, d)
+    if not agent.has_next():
+        st.done = True
+        _emit_call_end(tracer, st)
+
+
+def _emit_call_end(tracer: Optional[Tracer], st: "_CallState") -> None:
+    if tracer is None:
+        return
+    tracer.emit(
+        "call_end", actor="seller", option_id=st.seller.option_id, vendor=st.seller.vendor,
+        label=f"Call ended: {st.seller.vendor} after {st.turns} turn(s)",
+        detail={"turns": st.turns, "final_intent": st.prev_intent, "persona": st.seller.persona},
+    )
 
 
 def _verify(pool: EvidencePool, spec: ProductSpec, tracer: Optional[Tracer]) -> None:
@@ -187,29 +231,65 @@ def _trace_verify(tracer: Optional[Tracer], ev: QuoteEvidence) -> None:
     )
 
 
+# Where the call list comes from in the real world (challenge §02). The demo runs
+# on a curated set of real vendors; in production this is a Places/Yelp business search.
+CALL_LIST_SOURCE = "Curated real vendors — in production: Google Places / Yelp business search"
+
+
 def gather_quotes(
     spec: ProductSpec,
     sellers: Optional[list[MarketSeller]] = None,
     tracer: Optional[Tracer] = None,
+    interleave: bool = False,
 ) -> EvidencePool:
-    """Run the buyer's inquiry pass across every seller and return the verified pool."""
+    """Run the buyer's inquiry pass across every seller and return the verified pool.
+
+    With `interleave=True` the calls are driven round-robin (one exchange per call per
+    round) so the trace reads as **parallel sessions** — several calls in flight at once,
+    finishing at different turn depths — rather than one call fully before the next.
+    """
     sellers = sellers if sellers is not None else load_market()
     pool = EvidencePool(spec_id=spec.spec_id)
+    opening = _opening_ask(spec)
 
-    for seller in sellers:
-        headline, final, turns = _run_inquiry(seller, tracer)
-        quote = _quote_from_disclosures(seller, headline, final)
+    calls = [_CallState(s) for s in sellers]
+    if tracer is not None:
+        tracer.emit(
+            "call_list",
+            actor="buyer",
+            label=f"Call list: {len(calls)} vendors · {CALL_LIST_SOURCE}",
+            detail={"source": CALL_LIST_SOURCE, "count": len(calls)},
+        )
+        for st in calls:
+            tracer.emit(
+                "inquiry_start", actor="buyer", option_id=st.seller.option_id, vendor=st.seller.vendor,
+                label=f"Buyer → {st.seller.vendor}: {opening}",
+                detail={"persona": st.seller.persona, "text": opening, "source_url": st.seller.source_url},
+            )
+
+    if interleave:
+        while any(not st.done for st in calls):
+            for st in calls:
+                if not st.done:
+                    _advance(st, tracer)
+    else:
+        for st in calls:
+            while not st.done:
+                _advance(st, tracer)
+
+    for st in calls:
+        quote = _quote_from_disclosures(st.seller, st.headline, st.final)
         ev = QuoteEvidence(
-            option_id=seller.option_id,
-            vendor=seller.vendor,
-            persona=seller.persona,
-            source_url=seller.source_url,
-            listed_price=seller.listed_price,
-            matched_attributes=dict(seller.matched_attributes),
+            option_id=st.seller.option_id,
+            vendor=st.seller.vendor,
+            persona=st.seller.persona,
+            source_url=st.seller.source_url,
+            listed_price=st.seller.listed_price,
+            matched_attributes=dict(st.seller.matched_attributes),
             quote=quote,
             comparable_total=quote.comparable_total,
-            disclosure_quality=seller.disclosure_quality,
-            inquiry_turns=turns,
+            disclosure_quality=st.seller.disclosure_quality,
+            inquiry_turns=st.turns,
         )
         pool.add(ev)
         if tracer is not None:
@@ -221,7 +301,17 @@ def gather_quotes(
                 label=f"Pool += {ev.vendor}"
                 + (f" (all-in ${ev.comparable_total:,.0f})" if ev.comparable_total else " (no firm price)"),
                 price=ev.comparable_total,
-                detail={"persona": ev.persona, "turns": turns},
+                detail={
+                    "persona": ev.persona,
+                    "turns": st.turns,
+                    "source_url": ev.source_url,
+                    "listed_price": ev.listed_price,
+                    "headline": quote.headline_price,
+                    "base": quote.base_price,
+                    "comparable_total": quote.comparable_total,
+                    "ballpark": quote.ballpark,
+                    "line_items": [li.model_dump() for li in quote.line_items],
+                },
             )
 
     _verify(pool, spec, tracer)
@@ -231,7 +321,7 @@ def gather_quotes(
             actor="buyer",
             label=f"Evidence pool: {len(pool.verified())}/{len(pool.quotes)} verified · "
             f"median all-in ${pool.median_comparable() or 0:,.0f}",
-            detail=pool.summary(),
+            detail={**pool.summary(), "call_list_source": CALL_LIST_SOURCE},
         )
     return pool
 

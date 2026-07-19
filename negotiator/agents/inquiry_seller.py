@@ -47,6 +47,10 @@ class InquirySellerAgent:
     def turns(self) -> int:
         return len(self._script)
 
+    def has_next(self) -> bool:
+        """True while the seller still has a disclosure turn left to give."""
+        return self._step < len(self._script)
+
     def next_disclosure(self) -> Optional[Disclosure]:
         """Return the next turn, or None once the script is exhausted."""
         if self._step >= len(self._script):
