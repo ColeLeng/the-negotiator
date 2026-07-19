@@ -70,106 +70,81 @@
   button.reconnect:hover { border-color: var(--muted); }
 
   main {
-    flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    flex: 1; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 10px;
     padding: 12px 16px 14px; min-height: 0;
   }
-  .lane {
-    display: flex; flex-direction: column; min-height: 0;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-    overflow: hidden;
+
+  /* -------- call indicator -------- */
+  #call-indicator {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   }
-  .lane-head { padding: 10px 14px; border-bottom: 1px solid var(--gridline); }
-  .lane-head .idx { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .lane-head .title { font-size: 15px; font-weight: 700; margin-top: 2px; }
-  .lane-head .played { color: var(--text-2); font-size: 11.5px; margin-top: 3px; }
-  .lane-head .proves {
-    margin-top: 6px; font-size: 10.5px; color: var(--lever);
+  #call-indicator .n { font-size: 11px; color: var(--muted); }
+  #call-indicator .title { font-size: 17px; font-weight: 700; }
+  #call-indicator .proves {
+    font-size: 10.5px; color: var(--lever);
     border: 1px solid color-mix(in srgb, var(--lever) 45%, transparent);
-    border-radius: 6px; padding: 3px 7px; display: inline-block;
+    border-radius: 6px; padding: 2px 8px;
   }
+  #call-tabs { margin-left: auto; display: flex; gap: 6px; }
+  .call-tab {
+    font-size: 10.5px; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .call-tab.active { color: var(--text-1); border-color: var(--text-1); }
+  .call-tab.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, transparent); }
 
-  /* ---------------- per-lane mini architecture diagram ---------------- */
-  .mini-diagram {
+  /* -------- one unified diagram, icon-forward, minimal text -------- */
+  #diagram-wrap {
     position: relative;
-    height: 112px;
-    margin: 8px 14px 2px;
-    flex: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    min-height: 0; display: flex; flex-direction: column;
   }
-  .mini-diagram svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-  .mini-node {
+  #diagram-canvas { position: relative; flex: 1; min-height: 260px; }
+  #diagram-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .node {
     position: absolute;
-    border: 1.5px solid var(--border);
-    border-radius: 7px;
+    border: 2px solid var(--border);
+    border-radius: 14px;
     background: var(--surface-2);
-    font-size: 10.5px;
-    font-weight: 600;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 2px;
-    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease, transform 150ms ease;
   }
-  .mini-node.pulse {
+  .node .glyph { font-size: 26px; line-height: 1; }
+  .node .label { font-size: 12px; font-weight: 700; letter-spacing: 0.01em; }
+  .node.pulse {
     border-color: var(--node-color, var(--text-1));
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-color, var(--text-1)) 30%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--node-color, var(--text-1)) 22%, transparent);
     background: color-mix(in srgb, var(--node-color, var(--text-1)) 16%, var(--surface-2));
+    transform: scale(1.04);
   }
 
-  .checklist { padding: 8px 14px; border-bottom: 1px solid var(--gridline); }
-  .check-item {
-    display: flex; align-items: center; gap: 7px; font-size: 11.5px;
-    color: var(--muted); padding: 2px 0;
+  /* -------- calls summary strip -------- */
+  #calls-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .call-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px;
   }
-  .check-item .dot {
-    width: 13px; height: 13px; border-radius: 999px; flex: none;
-    border: 1.5px solid var(--muted); display: flex; align-items: center; justify-content: center;
+  .call-card.active { border-color: var(--text-1); }
+  .call-card .name { font-size: 11.5px; font-weight: 700; }
+  .call-card .checks { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .check-chip {
+    font-size: 9.5px; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 1px 6px;
   }
-  .check-item.done { color: var(--text-1); }
-  .check-item.done .dot { border-color: var(--good); background: color-mix(in srgb, var(--good) 20%, transparent); }
-  .check-item.done .dot::after { content: "✓"; font-size: 9px; color: var(--good); font-weight: 700; }
+  .check-chip.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, transparent); }
 
-  .price-row {
-    padding: 8px 14px; border-bottom: 1px solid var(--gridline);
-    display: flex; justify-content: space-between; align-items: baseline;
+  /* -------- latest turn -------- */
+  #latest-turn {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; display: flex; align-items: center; gap: 12px; min-height: 46px;
   }
-  .price-row .status {
-    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-2);
+  #latest-turn .tag {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 2px 8px; border-radius: 6px; background: var(--surface-2); color: var(--text-2); flex: none;
   }
-  .price-row .status.agreed      { color: var(--good);     border-color: color-mix(in srgb, var(--good) 50%, transparent); }
-  .price-row .status.walked_away { color: var(--warning);  border-color: color-mix(in srgb, var(--warning) 50%, transparent); }
-  .price-row .status.refused     { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 50%, transparent); }
-  .price-row .price {
-    font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
-    transition: color 120ms ease;
-  }
-  .price-row .price.flash { color: var(--good); }
-
-  .lane-feed { flex: 1; overflow-y: auto; padding: 2px 0; }
-  .row {
-    padding: 5px 14px; border-bottom: 1px solid var(--gridline); font-size: 12px;
-  }
-  .row:last-child { border-bottom: none; }
-  .row .who { font-weight: 700; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.03em; }
-  .row .who.buyer  { color: var(--buyer); }
-  .row .who.seller { color: var(--seller); }
-  .row .text { color: var(--text-1); margin-top: 1px; }
-  .row .text .price { display: inline; font-size: inherit; font-weight: 700; color: inherit; }
-  .row.honesty_check   { background: color-mix(in srgb, var(--lever) 10%, transparent); }
-  .row.guard_intervention { background: color-mix(in srgb, var(--critical) 10%, transparent); }
-  .row.ai_disclosure, .row.friction { background: color-mix(in srgb, var(--good) 8%, transparent); }
-  .row .tag {
-    font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
-    margin-left: 6px;
-  }
-
-  .lane-feed::-webkit-scrollbar { width: 7px; }
-  .lane-feed::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 4px; }
-
-  @media (max-width: 980px) {
-    main { grid-template-columns: 1fr; overflow-y: auto; }
-  }
+  #latest-turn .text { flex: 1; color: var(--text-1); }
+  #latest-turn .price { font-variant-numeric: tabular-nums; color: var(--text-2); flex: none; }
 </style>
 </head>
 <body>
@@ -179,88 +154,98 @@
     <span id="status-pill" class="pill"><span class="dot"></span><span id="status-label">connecting…</span></span>
     <button class="reconnect" id="reconnect">Run again</button>
   </header>
-  <main id="lanes"></main>
+  <main>
+    <div id="call-indicator">
+      <span class="n" id="call-n">Call — of 3</span>
+      <span class="title" id="call-title">—</span>
+      <span class="proves" id="call-proves"></span>
+      <div id="call-tabs"></div>
+    </div>
+
+    <div id="diagram-wrap"><div id="diagram-canvas"></div></div>
+
+    <div id="calls-strip"></div>
+
+    <div id="latest-turn">
+      <span class="tag">latest turn</span>
+      <span class="text" id="latest-text">waiting for the calls to start…</span>
+      <span class="price" id="latest-price"></span>
+    </div>
+  </main>
 
   <script>
-    // Static metadata (mirrors demo/three_negotiations/scenarios.py) so each lane
-    // renders immediately, even before its call_start event arrives.
+    // One shared diagram for all three calls: the negotiation loop itself never
+    // changes shape between styles, only which lines get spoken and how the
+    // seller (Cole) plays it -- so one diagram, lighting up per event, is the
+    // honest representation (not three copies of the same four boxes).
     const STYLE_ORDER = ["tough_but_fair", "stonewaller", "upseller"];
     const STYLE_META = {
-      tough_but_fair: { title: "Tough but fair", played: "Holds firm, pushes a deposit, but will deal.", proves: "Price moves during the call" },
-      stonewaller:    { title: "Won’t quote by phone", played: "“We only give prices at an in-store appointment.”", proves: "Every call ends with a real outcome" },
-      upseller:       { title: "Upseller", played: "Piles on rush fees, veil, alterations to inflate the total.", proves: "Quotes are itemized and comparable" },
+      tough_but_fair: { title: "Tough but fair", proves: "Price moves during the call" },
+      stonewaller:    { title: "Won’t quote by phone", proves: "Every call ends with a real outcome" },
+      upseller:       { title: "Upseller", proves: "Quotes are itemized and comparable" },
     };
     const CHECK_LABELS = {
-      price_moves: "Price moves during the call",
-      structured_ending: "Structured ending",
-      ai_disclosure: "AI discloses itself",
-      friction_handled: "Friction handled gracefully",
-      honest_leverage_only: "Only real leverage used",
-      callback_or_range_extracted: "Callback / range extracted",
-      fees_itemized: "Fees itemized",
+      price_moves: "price moves",
+      structured_ending: "structured ending",
+      ai_disclosure: "AI discloses",
+      friction_handled: "friction handled",
+      honest_leverage_only: "real leverage only",
+      callback_or_range_extracted: "callback/range",
+      fees_itemized: "fees itemized",
     };
 
-    // ---------------------------------------------------------------------
-    // Per-lane mini architecture diagram: negotiator/agents/buyer_agent.py ->
-    // negotiator/guard.py -> the seller (Cole's voice), with the shared
-    // negotiator/comms/blackboard.py as the honest-leverage feedback loop.
-    // Same box-and-arrow language as /trace/view, scaled down to fit a lane.
-    // ---------------------------------------------------------------------
-    const MINI_NODES = [
-      { id: "buyer",      title: "Buyer Agent", x: 1,  y: 6,  w: 30, h: 34, color: "--buyer" },
-      { id: "guard",      title: "Guard",       x: 35, y: 6,  w: 30, h: 34, color: "--lever" },
-      { id: "seller",     title: "Seller",      x: 69, y: 6,  w: 30, h: 34, color: "--seller" },
-      { id: "blackboard", title: "Blackboard",  x: 1,  y: 62, w: 30, h: 34, color: "--lever" },
+    const NODES = [
+      { id: "buyer",      glyph: "🧑‍💼", label: "Buyer Agent", x: 4,  y: 30, w: 20, h: 40, color: "--buyer" },
+      { id: "guard",      glyph: "🛡️", label: "Guard",       x: 30, y: 8,  w: 18, h: 30, color: "--lever" },
+      { id: "seller",     glyph: "☎️", label: "Seller",      x: 55, y: 30, w: 20, h: 40, color: "--seller" },
+      { id: "blackboard", glyph: "📋", label: "Blackboard",  x: 30, y: 66, w: 18, h: 26, color: "--lever" },
     ];
-    const MINI_EDGES = [
+    const EDGES = [
       ["buyer", "guard"],
       ["guard", "seller"],
       ["buyer", "blackboard", true, true], // bidirectional, dashed
     ];
 
-    function buildMiniDiagram(container) {
+    const canvas = document.getElementById("diagram-canvas");
+    const nodeEls = {};
+
+    function renderDiagram() {
+      canvas.innerHTML = "";
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", "0 0 100 100");
       svg.setAttribute("preserveAspectRatio", "none");
-      svg.innerHTML = `<defs><marker id="mini-arrow" viewBox="0 0 10 10" refX="9" refY="5"
-        markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+        markerWidth="6" markerHeight="6" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"></path></marker></defs>`;
-      const byId = Object.fromEntries(MINI_NODES.map((n) => [n.id, n]));
-      for (const [fromId, toId, bidir, dashed] of MINI_EDGES) {
+      const byId = Object.fromEntries(NODES.map((n) => [n.id, n]));
+      for (const [fromId, toId, bidir, dashed] of EDGES) {
         const a = byId[fromId], b = byId[toId];
+        const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
+        const bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        let d;
-        if (a.y === b.y) {
-          d = `M ${a.x + a.w} ${a.y + a.h / 2} L ${b.x} ${b.y + b.h / 2}`;
-        } else {
-          const cx = a.x + a.w / 2;
-          d = `M ${cx} ${a.y + a.h} L ${cx} ${b.y}`;
-        }
-        path.setAttribute("d", d);
+        path.setAttribute("d", `M ${ac.x} ${ac.y} L ${bc.x} ${bc.y}`);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", "var(--gridline)");
         path.setAttribute("stroke-width", "0.6");
-        path.setAttribute("marker-end", "url(#mini-arrow)");
-        if (bidir) path.setAttribute("marker-start", "url(#mini-arrow)");
-        if (dashed) path.setAttribute("stroke-dasharray", "2,1.6");
+        path.setAttribute("marker-end", "url(#arrow)");
+        if (bidir) path.setAttribute("marker-start", "url(#arrow)");
+        if (dashed) path.setAttribute("stroke-dasharray", "1.8,1.5");
         svg.appendChild(path);
       }
-      container.appendChild(svg);
+      canvas.appendChild(svg);
 
-      const nodeEls = {};
-      for (const n of MINI_NODES) {
+      for (const n of NODES) {
         const el = document.createElement("div");
-        el.className = "mini-node";
+        el.className = "node";
         el.style.setProperty("--node-color", `var(${n.color})`);
         Object.assign(el.style, { left: n.x + "%", top: n.y + "%", width: n.w + "%", height: n.h + "%" });
-        el.textContent = n.title;
-        container.appendChild(el);
+        el.innerHTML = `<div class="glyph">${n.glyph}</div><div class="label">${n.label}</div>`;
+        canvas.appendChild(el);
         nodeEls[n.id] = el;
       }
-      return nodeEls;
     }
 
-    function pulseMiniNode(nodeEls, nodeId) {
+    function pulse(nodeId) {
       const el = nodeEls[nodeId];
       if (!el) return;
       el.classList.add("pulse");
@@ -268,7 +253,6 @@
       el._pulseTimer = setTimeout(() => el.classList.remove("pulse"), 700);
     }
 
-    // Map a TraceEvent onto the mini-diagram node(s) it should light up.
     function nodesForEvent(evt) {
       if (evt.kind === "blackboard_update") return ["blackboard"];
       if (evt.kind === "guard_intervention" || evt.kind === "honesty_check") return ["buyer", "guard"];
@@ -277,11 +261,19 @@
       return [];
     }
 
-    const lanesEl = document.getElementById("lanes");
+    // ---------------------------------------------------------------------
     const statusPill = document.getElementById("status-pill");
     const statusLabel = document.getElementById("status-label");
     const reconnectBtn = document.getElementById("reconnect");
-    const lanes = {};
+    const callN = document.getElementById("call-n");
+    const callTitle = document.getElementById("call-title");
+    const callProves = document.getElementById("call-proves");
+    const callTabs = document.getElementById("call-tabs");
+    const callsStrip = document.getElementById("calls-strip");
+    const latestText = document.getElementById("latest-text");
+    const latestPrice = document.getElementById("latest-price");
+
+    const callCards = {};
     let es = null;
 
     function setStatus(kind, text) { statusPill.className = "pill " + kind; statusLabel.textContent = text; }
@@ -291,95 +283,72 @@
       return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
     }
 
-    function buildLane(style) {
-      const meta = STYLE_META[style] || { title: style, played: "", proves: "" };
-      const idx = STYLE_ORDER.indexOf(style) + 1;
-      const el = document.createElement("div");
-      el.className = "lane";
-      el.innerHTML = `
-        <div class="lane-head">
-          <div class="idx">Call ${idx} of 3</div>
-          <div class="title">${meta.title}</div>
-          <div class="played">${meta.played}</div>
-          <div class="proves">${meta.proves}</div>
-        </div>
-        <div class="mini-diagram"></div>
-        <div class="checklist"></div>
-        <div class="price-row"><span class="status"></span><span class="price">—</span></div>
-        <div class="lane-feed"></div>
-      `;
-      lanesEl.appendChild(el);
-      const nodeEls = buildMiniDiagram(el.querySelector(".mini-diagram"));
-      return {
-        el,
-        nodeEls,
-        checklistEl: el.querySelector(".checklist"),
-        statusEl: el.querySelector(".status"),
-        priceEl: el.querySelector(".price"),
-        feedEl: el.querySelector(".lane-feed"),
-        checklist: {},
-      };
+    function buildStrip() {
+      callsStrip.innerHTML = "";
+      callTabs.innerHTML = "";
+      STYLE_ORDER.forEach((style, i) => {
+        const meta = STYLE_META[style];
+        const card = document.createElement("div");
+        card.className = "call-card";
+        card.innerHTML = `<div class="name">${i + 1}. ${meta.title}</div><div class="checks"></div>`;
+        callsStrip.appendChild(card);
+        callCards[style] = { card, checksEl: card.querySelector(".checks") };
+
+        const tab = document.createElement("span");
+        tab.className = "call-tab";
+        tab.textContent = i + 1;
+        callTabs.appendChild(tab);
+        callCards[style].tab = tab;
+      });
     }
 
-    function laneFor(style) {
-      if (!lanes[style]) lanes[style] = buildLane(style);
-      return lanes[style];
+    function setActiveCall(style) {
+      STYLE_ORDER.forEach((s) => {
+        callCards[s].card.classList.toggle("active", s === style);
+        if (s !== style) callCards[s].tab.classList.remove("active");
+      });
+      callCards[style].tab.classList.add("active");
     }
 
-    function renderChecklist(lane) {
-      const keys = Object.keys(lane.checklist);
-      lane.checklistEl.innerHTML = keys.map((k) => {
-        const done = !!lane.checklist[k];
-        return `<div class="check-item ${done ? "done" : ""}"><span class="dot"></span>${CHECK_LABELS[k] || k}</div>`;
-      }).join("");
-    }
-
-    function appendRow(lane, evt) {
-      const row = document.createElement("div");
-      row.className = "row " + evt.kind;
-      const who = evt.actor === "buyer" ? "buyer" : evt.actor === "seller" ? "seller" : (evt.actor || "");
-      const tagFor = { ai_disclosure: "disclosure", friction: "friction", honesty_check: "honest leverage", guard_intervention: "guard stripped it" };
-      row.innerHTML = `
-        <div class="who ${who}">${who || evt.kind.replace("_", " ")}${tagFor[evt.kind] ? `<span class="tag">${tagFor[evt.kind]}</span>` : ""}</div>
-        <div class="text">${evt.detail && evt.detail.text ? evt.detail.text : (evt.detail && evt.detail.rationale) || evt.label}</div>
-      `;
-      lane.feedEl.appendChild(row);
-      lane.feedEl.scrollTop = lane.feedEl.scrollHeight;
+    function markCallDone(style, checklist) {
+      callCards[style].tab.classList.remove("active");
+      callCards[style].tab.classList.add("done");
+      callCards[style].checksEl.innerHTML = Object.entries(checklist).map(([k, done]) =>
+        `<span class="check-chip ${done ? "done" : ""}">${CHECK_LABELS[k] || k}</span>`
+      ).join("");
     }
 
     function handleEvent(evt) {
       const style = evt.detail && evt.detail.style;
-      if (!style) return; // ignore anything not tagged to a lane
-
-      const lane = laneFor(style);
+      if (!style) return;
 
       if (evt.kind === "call_start") {
-        lane.statusEl.textContent = "in progress";
-        lane.statusEl.className = "status";
+        const i = STYLE_ORDER.indexOf(style);
+        const meta = STYLE_META[style];
+        callN.textContent = `Call ${i + 1} of 3`;
+        callTitle.textContent = meta.title;
+        callProves.textContent = meta.proves;
+        setActiveCall(style);
         return;
       }
       if (evt.kind === "call_end") {
-        lane.checklist = evt.detail.checklist || {};
-        renderChecklist(lane);
-        const status = evt.detail.status || "";
-        lane.statusEl.textContent = status.replace("_", " ");
-        lane.statusEl.className = "status " + status;
+        markCallDone(style, evt.detail.checklist || {});
         return;
       }
 
-      appendRow(lane, evt);
-      for (const nodeId of nodesForEvent(evt)) pulseMiniNode(lane.nodeEls, nodeId);
-      if (evt.price !== null && evt.price !== undefined) {
-        lane.priceEl.textContent = fmtUsd(evt.price);
-        lane.priceEl.classList.add("flash");
-        setTimeout(() => lane.priceEl.classList.remove("flash"), 220);
-      }
+      for (const nodeId of nodesForEvent(evt)) pulse(nodeId);
+      const text = (evt.detail && (evt.detail.text || evt.detail.rationale)) || evt.label;
+      latestText.innerHTML = `<strong>${evt.actor || evt.kind}</strong> — ${text}`;
+      latestPrice.textContent = evt.price != null ? fmtUsd(evt.price) : "";
     }
 
     function connect() {
-      lanesEl.innerHTML = "";
-      Object.keys(lanes).forEach((k) => delete lanes[k]);
-      STYLE_ORDER.forEach(laneFor); // pre-render all three lanes immediately
+      buildStrip();
+      callN.textContent = "Call — of 3";
+      callTitle.textContent = "—";
+      callProves.textContent = "";
+      latestText.textContent = "waiting for the calls to start…";
+      latestPrice.textContent = "";
       setStatus("live", "connecting…");
       if (es) es.close();
       es = new EventSource("/demo/three-negotiations/stream");
@@ -388,6 +357,7 @@
       es.onerror = () => { setStatus("error", "disconnected — click Run again"); es.close(); };
     }
 
+    renderDiagram();
     reconnectBtn.addEventListener("click", connect);
     connect();
   </script>
