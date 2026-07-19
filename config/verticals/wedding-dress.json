@@ -104,5 +104,6 @@
     { "id": "stonewaller_no_prices_by_phone", "description": "'We only give pricing after an in-store appointment' — must extract a range or a firm callback." },
     { "id": "hard_sell_upseller", "description": "Bundles alterations, veils, rush fees, preservation; inflates the total. Agent must itemize and strip non-essentials." }
   ],
-  "disclosure": "Hi, this is an AI assistant calling on behalf of a customer who's shopping for a wedding dress. Happy to say up front that I'm an AI — I'm just gathering some pricing and availability. Is now an okay time for a couple of quick questions?"
+  "disclosure": "Hi, this is an AI assistant calling on behalf of a customer who's shopping for a wedding dress. Happy to say up front that I'm an AI — I'm just gathering some pricing and availability. Is now an okay time for a couple of quick questions?",
+  "intakeGreeting": "Hi! I'm your personal shopping assistant — I can find and negotiate a wedding dress for you. To get started, tell me about the dress you're dreaming of and when the wedding is."
 }

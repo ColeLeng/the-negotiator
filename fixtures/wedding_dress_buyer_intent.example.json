@@ -1,0 +1,119 @@
+{
+  "intent": "buy",
+  "spec_id": "spec_3228f2ec",
+  "category": "Wedding Dress (DTC)",
+  "confirmed": true,
+  "must_haves": [
+    {
+      "attribute": "size",
+      "value": "US 8"
+    }
+  ],
+  "open_questions": [],
+  "preferences": [
+    {
+      "attribute": "designer",
+      "value": "Pronovias",
+      "importance": 0.5,
+      "flexible": false,
+      "substitutions": []
+    },
+    {
+      "attribute": "silhouette",
+      "value": "A-line",
+      "importance": 0.333,
+      "flexible": true,
+      "substitutions": [
+        "A-line",
+        "ball-gown",
+        "mermaid",
+        "sheath",
+        "fit-and-flare",
+        "trumpet"
+      ]
+    },
+    {
+      "attribute": "color",
+      "value": "ivory",
+      "importance": 0.167,
+      "flexible": true,
+      "substitutions": [
+        "white",
+        "ivory",
+        "champagne",
+        "blush",
+        "off-white"
+      ]
+    },
+    {
+      "attribute": "acquisition_channel",
+      "value": "made_to_order",
+      "importance": 0.15,
+      "flexible": true,
+      "substitutions": [
+        "off_the_rack",
+        "made_to_order",
+        "custom",
+        "sample_sale",
+        "resale"
+      ]
+    },
+    {
+      "attribute": "fabric",
+      "value": null,
+      "importance": 0.15,
+      "flexible": false,
+      "substitutions": []
+    },
+    {
+      "attribute": "sleeve",
+      "value": null,
+      "importance": 0.15,
+      "flexible": false,
+      "substitutions": []
+    },
+    {
+      "attribute": "neckline",
+      "value": "sweetheart",
+      "importance": 0.15,
+      "flexible": false,
+      "substitutions": []
+    },
+    {
+      "attribute": "customization",
+      "value": null,
+      "importance": 0.15,
+      "flexible": false,
+      "substitutions": []
+    }
+  ],
+  "priority_order": [
+    "designer",
+    "silhouette",
+    "color",
+    "acquisition_channel",
+    "neckline"
+  ],
+  "budget": {
+    "target_price": 1500.0,
+    "reservation_price": 2200.0,
+    "currency": "USD"
+  },
+  "timeline": {
+    "deadline_days": 120
+  },
+  "summary": "size=US 8; within 120 days",
+  "caller_dynamic_variables": {
+    "product_summary": "A-line, ivory, US 8, made_to_order, sweetheart, Pronovias (Wedding Dress (DTC))",
+    "must_have_summary": "size=US 8; within 120 days",
+    "acceptable_substitutions": "silhouette: A-line/ball-gown/mermaid/sheath/fit-and-flare/trumpet; color: white/ivory/champagne/blush/off-white; acquisition_channel: off_the_rack/made_to_order/custom/sample_sale/resale",
+    "deadline_days": 120,
+    "instruction": "Ask each seller for their best price and availability on this or a comparable item. Do NOT state any budget, target, or maximum — we are gathering honest quotes to compare."
+  },
+  "negotiation_dynamic_variables": {
+    "product_summary": "A-line, ivory, US 8, made_to_order, sweetheart, Pronovias (Wedding Dress (DTC))",
+    "must_have_summary": "size=US 8; within 120 days",
+    "target_price": 1500,
+    "deadline_days": 120
+  }
+}

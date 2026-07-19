@@ -22,8 +22,20 @@ from __future__ import annotations
 
 import pytest
 
-from negotiator.estimator import confirm_spec, estimate, estimate_from_document, missing_requirements
-from negotiator.voice_intake import build_agent_config, create_or_update_agent, handle_tool_call
+from negotiator.estimator import (
+    apply_priorities,
+    confirm_spec,
+    estimate,
+    estimate_from_document,
+    missing_requirements,
+    to_buyer_intent,
+)
+from negotiator.voice_intake import (
+    build_agent_config,
+    create_or_update_agent,
+    handle_tool_call,
+    handle_tool_call_to_intent,
+)
 
 ECOMMERCE = "ecommerce-packaging"
 
@@ -252,3 +264,79 @@ def test_wedding_dress_demo_text_still_yields_the_same_price_bounds():
     by_name = {a.name: a for a in spec.attributes}
     assert by_name["color"].value == "ivory"
     assert by_name["size"].value.upper().replace(" ", "") == "US8"
+
+
+# -----------------------------------------------------------------------------
+# Buyer-intent JSON handoff -- the priority + user-intent document (Section 5 output)
+# -----------------------------------------------------------------------------
+
+def test_to_buyer_intent_shape_and_private_reservation():
+    demo_text = "Ivory wedding dress, US 8, ideally under $1800, hard cap $2400, within 30 days."
+    intent = to_buyer_intent(estimate(demo_text))
+
+    assert intent["intent"] == "buy"
+    assert intent["spec_id"].startswith("spec_")
+    # size is the hard constraint -> a must-have.
+    assert any(m["attribute"] == "size" for m in intent["must_haves"])
+    # budget carries the private reservation for the engine...
+    assert intent["budget"]["reservation_price"] == 2400.0
+
+    # Stage 1 — the caller / quote-seeking handoff must NOT anchor price.
+    caller = intent["caller_dynamic_variables"]
+    assert "target_price" not in caller
+    assert "reservation_price" not in caller
+    assert caller["product_summary"]
+    assert caller["deadline_days"] == 30
+
+    # Stage 2 — negotiation handoff may open at target, but never exposes reservation.
+    nego = intent["negotiation_dynamic_variables"]
+    assert nego["target_price"] == 1800
+    assert "reservation_price" not in nego
+
+
+def test_priorities_rank_soft_attributes_by_weight():
+    """A stated priority order re-weights soft attributes, and the intent doc's
+    priority_order reflects it (most important first)."""
+    tool_args = {
+        "attributes": {"silhouette": "A-line", "color": "ivory", "designer": "Pronovias", "size": "US 8"},
+        "target_price": 1500,
+        "reservation_price": 2200,
+        "deadline_days": 120,
+        "priorities": ["designer", "silhouette", "color"],
+    }
+    spec = handle_tool_call(tool_args, vertical="wedding-dress")
+    by_name = {a.name: a for a in spec.attributes}
+    assert by_name["designer"].weight > by_name["silhouette"].weight > by_name["color"].weight
+
+    intent = to_buyer_intent(spec)
+    top3 = [p for p in intent["priority_order"] if p in {"designer", "silhouette", "color"}]
+    assert top3 == ["designer", "silhouette", "color"]
+
+
+def test_apply_priorities_is_a_noop_without_priorities():
+    spec = estimate("Ivory wedding dress, US 8, under $1800, cap $2400", vertical="wedding-dress")
+    assert apply_priorities(spec, None) is spec
+    assert apply_priorities(spec, []) is spec
+
+
+def test_handle_tool_call_to_intent_returns_json_handoff():
+    tool_args = {
+        "attributes": {"color": "ivory", "size": "US 8"},
+        "target_price": 1500,
+        "reservation_price": 2200,
+        "deadline_days": 120,
+    }
+    intent = handle_tool_call_to_intent(tool_args, vertical="wedding-dress")
+    # negotiation stage may open at target; caller stage must not anchor price.
+    assert intent["negotiation_dynamic_variables"]["target_price"] == 1500
+    assert "target_price" not in intent["caller_dynamic_variables"]
+    assert intent["budget"]["reservation_price"] == 2200
+
+
+def test_wedding_dress_intake_agent_greets_the_buyer():
+    """The intake agent's first line greets the buyer (intakeGreeting), not the
+    seller-call disclosure."""
+    config = build_agent_config("wedding-dress")
+    first = config["conversation_config"]["agent"]["first_message"]
+    assert "personal shopping assistant" in first
+    assert "calling on behalf" not in first  # that's the seller-call disclosure

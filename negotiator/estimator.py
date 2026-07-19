@@ -126,6 +126,100 @@ def estimate_from_document(
     return estimate(text, vertical=vertical)
 
 
+def to_buyer_intent(spec: ProductSpec, *, confirmed: Optional[bool] = None) -> dict:
+    """
+    The buyer-intent handoff document (Section 5 output).
+
+    ProductSpec is the machine contract the Caller consumes (`search(spec)`); this is the
+    readable *priority + user-intent JSON* that documents what the buyer wants, how much
+    each thing matters, and — critically — carries TWO stage-specific handoff blocks,
+    because the pipeline is `Estimator → Caller (quote-seeking) → negotiation`:
+
+      • `caller_dynamic_variables` — for the CALLER / parallel quote-seeking. It states
+        what to ask about and which substitutions count as comparable, and deliberately
+        DOES NOT include target/reservation: revealing a budget while gathering quotes
+        anchors the seller and poisons the BATNA the caller exists to collect. Ask for the
+        seller's honest price + availability first.
+
+      • `negotiation_dynamic_variables` — for the LATER negotiation stage, once real
+        quotes (a BATNA) exist. It may open at `target_price`, but never exposes
+        `reservation_price` (the private walk-away max — engine only, in `budget`).
+    """
+    hard = [a for a in spec.attributes if a.constraint == "hard"]
+    soft = [a for a in spec.attributes if a.constraint == "soft"]
+
+    ranked = sorted(soft, key=lambda a: (a.weight or 0.0), reverse=True)
+    preferences = [
+        {
+            "attribute": a.name,
+            "value": a.value,
+            "importance": round(a.weight, 3) if a.weight is not None else None,
+            "flexible": bool(a.substitutions),
+            "substitutions": a.substitutions,
+        }
+        for a in ranked
+    ]
+
+    n = spec.negotiation
+    return {
+        "intent": "buy",
+        "spec_id": spec.spec_id,
+        "category": spec.category,
+        "confirmed": confirmed if confirmed is not None else (missing_requirements(spec) == []),
+        "must_haves": [{"attribute": a.name, "value": a.value} for a in hard if a.value],
+        "open_questions": [a.name for a in hard if not a.value],
+        "preferences": preferences,
+        "priority_order": [p["attribute"] for p in preferences if p["value"]],
+        "budget": {
+            "target_price": n.target_price,
+            "reservation_price": n.reservation_price,   # PRIVATE — engine only, never spoken
+            "currency": n.currency,
+        },
+        "timeline": {"deadline_days": n.deadline_days},
+        "summary": n.must_have_summary,
+        # Stage 1 — hand this to the caller / quote-seeking agent. No price anchoring.
+        "caller_dynamic_variables": {
+            "product_summary": _product_summary(spec),
+            "must_have_summary": n.must_have_summary or "",
+            "acceptable_substitutions": _substitutions_summary(spec),
+            "deadline_days": n.deadline_days,
+            "instruction": (
+                "Ask each seller for their best price and availability on this or a "
+                "comparable item. Do NOT state any budget, target, or maximum — we are "
+                "gathering honest quotes to compare."
+            ),
+        },
+        # Stage 2 — hand this to the negotiation agent AFTER quotes/BATNA exist.
+        "negotiation_dynamic_variables": {
+            "product_summary": _product_summary(spec),
+            "must_have_summary": n.must_have_summary or "",
+            "target_price": int(n.target_price) if n.target_price else None,
+            "deadline_days": n.deadline_days,
+        },
+    }
+
+
+def _substitutions_summary(spec: ProductSpec) -> str:
+    """Readable 'what counts as comparable' string for the quote-seeking caller, e.g.
+    'silhouette: A-line/ball-gown/mermaid; color: white/ivory/champagne'. Only soft
+    attributes with substitutions — the room the caller has to find comparable options."""
+    parts = [
+        f"{a.name}: {'/'.join(a.substitutions)}"
+        for a in spec.attributes
+        if a.constraint == "soft" and a.substitutions
+    ]
+    return "; ".join(parts)
+
+
+def _product_summary(spec: ProductSpec) -> str:
+    """A short human phrase of what the buyer wants, for the negotiation agent's
+    `product_summary` dynamic variable (e.g. 'A-line, ivory, US 8, Pronovias (Wedding
+    Dress (DTC))')."""
+    desc = ", ".join(a.value for a in spec.attributes if a.value)
+    category = spec.category or "item"
+    return f"{desc} ({category})" if desc else category
+
+
 def missing_requirements(spec: ProductSpec) -> list:
     """Hard constraints with no extracted value, plus missing/zero price bounds --
     the two things that are load-bearing for negotiation (per docs Section 5)."""
@@ -175,6 +269,7 @@ def _field_constraint(field: dict) -> str:
 def _slots_to_spec(data: dict, vcfg: dict, vertical: str) -> ProductSpec:
     """The single convergence point every intake surface funnels through."""
     raw_attrs = data.get("attributes") or {}
+    weights = _priority_weights(data.get("priorities"), vcfg)
     attrs = []
     for field in vcfg.get("specFields", []):
         if field.get("type") == "date":
@@ -189,7 +284,7 @@ def _slots_to_spec(data: dict, vcfg: dict, vertical: str) -> ProductSpec:
             name=key,
             value=raw_attrs.get(key),
             constraint=constraint,
-            weight=None if constraint == "hard" else 0.15,
+            weight=None if constraint == "hard" else weights.get(key, 0.15),
             substitutions=field.get("values", []) if field.get("type") == "enum" else [],
         ))
 
@@ -215,6 +310,57 @@ def _slots_to_spec(data: dict, vcfg: dict, vertical: str) -> ProductSpec:
             must_have_summary=summary,
         ),
     )
+
+
+def _priority_weights(priorities, vcfg: dict) -> dict:
+    """Turn a buyer's stated priorities into normalized soft-attribute weights.
+
+    Accepts either a ranked list of field keys (most important first) or a
+    {field_key: importance} mapping. Returns {} when nothing was stated, so intake with
+    no priorities keeps the flat default weight and all three intake surfaces stay
+    identical. Only soft fields are weighted (hard constraints are must-match, not traded).
+    """
+    if not priorities:
+        return {}
+    soft_keys = {
+        f["key"] for f in vcfg.get("specFields", [])
+        if f.get("type") != "date" and _field_constraint(f) == "soft"
+    }
+
+    scores: dict = {}
+    if isinstance(priorities, dict):
+        for key, imp in priorities.items():
+            if key in soft_keys:
+                try:
+                    scores[key] = float(imp)
+                except (TypeError, ValueError):
+                    continue
+    elif isinstance(priorities, (list, tuple)):
+        ranked = [k for k in priorities if k in soft_keys]
+        n = len(ranked)
+        for i, key in enumerate(ranked):
+            scores[key] = float(n - i)   # first = highest rank
+
+    total = sum(v for v in scores.values() if v > 0)
+    if total <= 0:
+        return {}
+    return {key: round(val / total, 3) for key, val in scores.items() if val > 0}
+
+
+def apply_priorities(spec: ProductSpec, priorities, vertical: Optional[str] = None) -> ProductSpec:
+    """Re-weight a spec's soft attributes from a buyer's stated priorities, returning a
+    new spec (original untouched). Used by the voice path, whose structured tool-call
+    carries priorities the flattened-text convergence step can't. No-op if priorities is
+    empty or names no soft fields."""
+    vertical = vertical or os.getenv("VERTICAL", _DEFAULT_VERTICAL)
+    weights = _priority_weights(priorities, load_vertical_config(vertical))
+    if not weights:
+        return spec
+    data = spec.model_dump(by_alias=True)
+    for attr in data["attributes"]:
+        if attr.get("constraint") == "soft" and attr["name"] in weights:
+            attr["weight"] = weights[attr["name"]]
+    return ProductSpec.model_validate(data)
 
 
 def _extract_heuristic(text: str, vcfg: dict, vertical: str) -> dict:
@@ -249,6 +395,15 @@ def _extract_with_llm(text: str, vcfg: dict) -> dict:
                 "target_price": {"type": ["number", "null"], "description": "What the buyer hopes to pay."},
                 "reservation_price": {"type": ["number", "null"], "description": "Hard walk-away max."},
                 "deadline_days": {"type": ["integer", "null"]},
+                "priorities": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "The soft attributes the buyer cares about MOST, in order (most "
+                        "important first) — e.g. ['designer', 'silhouette', 'color']. "
+                        "Use the exact field keys. Omit if the buyer didn't say."
+                    ),
+                },
             },
             "required": ["attributes"],
         },
