@@ -130,16 +130,20 @@ def to_buyer_intent(spec: ProductSpec, *, confirmed: Optional[bool] = None) -> d
     """
     The buyer-intent handoff document (Section 5 output).
 
-    ProductSpec is the machine contract the Caller consumes; this is the readable
-    *priority + user-intent JSON* that (a) documents what the buyer wants and how much
-    each thing matters, and (b) carries a ready-to-use `voice_dynamic_variables` block
-    that maps 1:1 onto the negotiation agent's ElevenLabs dynamic variables
-    (`product_summary` / `target_price` / `deadline_days` / `must_have_summary`), so the
-    same confirmed intent drives every parallel quote-seeking session verbatim.
+    ProductSpec is the machine contract the Caller consumes (`search(spec)`); this is the
+    readable *priority + user-intent JSON* that documents what the buyer wants, how much
+    each thing matters, and — critically — carries TWO stage-specific handoff blocks,
+    because the pipeline is `Estimator → Caller (quote-seeking) → negotiation`:
 
-    `reservation_price` is the buyer's private walk-away max: it stays in `budget` for the
-    negotiation *engine*, and is deliberately NOT in `voice_dynamic_variables` (nothing
-    the seller-facing agent can ever say).
+      • `caller_dynamic_variables` — for the CALLER / parallel quote-seeking. It states
+        what to ask about and which substitutions count as comparable, and deliberately
+        DOES NOT include target/reservation: revealing a budget while gathering quotes
+        anchors the seller and poisons the BATNA the caller exists to collect. Ask for the
+        seller's honest price + availability first.
+
+      • `negotiation_dynamic_variables` — for the LATER negotiation stage, once real
+        quotes (a BATNA) exist. It may open at `target_price`, but never exposes
+        `reservation_price` (the private walk-away max — engine only, in `budget`).
     """
     hard = [a for a in spec.attributes if a.constraint == "hard"]
     soft = [a for a in spec.attributes if a.constraint == "soft"]
@@ -173,13 +177,38 @@ def to_buyer_intent(spec: ProductSpec, *, confirmed: Optional[bool] = None) -> d
         },
         "timeline": {"deadline_days": n.deadline_days},
         "summary": n.must_have_summary,
-        "voice_dynamic_variables": {
+        # Stage 1 — hand this to the caller / quote-seeking agent. No price anchoring.
+        "caller_dynamic_variables": {
+            "product_summary": _product_summary(spec),
+            "must_have_summary": n.must_have_summary or "",
+            "acceptable_substitutions": _substitutions_summary(spec),
+            "deadline_days": n.deadline_days,
+            "instruction": (
+                "Ask each seller for their best price and availability on this or a "
+                "comparable item. Do NOT state any budget, target, or maximum — we are "
+                "gathering honest quotes to compare."
+            ),
+        },
+        # Stage 2 — hand this to the negotiation agent AFTER quotes/BATNA exist.
+        "negotiation_dynamic_variables": {
             "product_summary": _product_summary(spec),
             "must_have_summary": n.must_have_summary or "",
             "target_price": int(n.target_price) if n.target_price else None,
             "deadline_days": n.deadline_days,
         },
     }
+
+
+def _substitutions_summary(spec: ProductSpec) -> str:
+    """Readable 'what counts as comparable' string for the quote-seeking caller, e.g.
+    'silhouette: A-line/ball-gown/mermaid; color: white/ivory/champagne'. Only soft
+    attributes with substitutions — the room the caller has to find comparable options."""
+    parts = [
+        f"{a.name}: {'/'.join(a.substitutions)}"
+        for a in spec.attributes
+        if a.constraint == "soft" and a.substitutions
+    ]
+    return "; ".join(parts)
 
 
 def _product_summary(spec: ProductSpec) -> str:

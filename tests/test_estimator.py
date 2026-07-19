@@ -280,12 +280,18 @@ def test_to_buyer_intent_shape_and_private_reservation():
     assert any(m["attribute"] == "size" for m in intent["must_haves"])
     # budget carries the private reservation for the engine...
     assert intent["budget"]["reservation_price"] == 2400.0
-    # ...but the seller-facing dynamic variables must never expose it.
-    dv = intent["voice_dynamic_variables"]
-    assert "reservation_price" not in dv
-    assert dv["target_price"] == 1800
-    assert dv["deadline_days"] == 30
-    assert dv["product_summary"]
+
+    # Stage 1 — the caller / quote-seeking handoff must NOT anchor price.
+    caller = intent["caller_dynamic_variables"]
+    assert "target_price" not in caller
+    assert "reservation_price" not in caller
+    assert caller["product_summary"]
+    assert caller["deadline_days"] == 30
+
+    # Stage 2 — negotiation handoff may open at target, but never exposes reservation.
+    nego = intent["negotiation_dynamic_variables"]
+    assert nego["target_price"] == 1800
+    assert "reservation_price" not in nego
 
 
 def test_priorities_rank_soft_attributes_by_weight():
@@ -321,7 +327,9 @@ def test_handle_tool_call_to_intent_returns_json_handoff():
         "deadline_days": 120,
     }
     intent = handle_tool_call_to_intent(tool_args, vertical="wedding-dress")
-    assert intent["voice_dynamic_variables"]["target_price"] == 1500
+    # negotiation stage may open at target; caller stage must not anchor price.
+    assert intent["negotiation_dynamic_variables"]["target_price"] == 1500
+    assert "target_price" not in intent["caller_dynamic_variables"]
     assert intent["budget"]["reservation_price"] == 2200
 
 
