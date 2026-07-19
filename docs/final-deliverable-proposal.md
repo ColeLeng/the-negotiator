@@ -176,6 +176,8 @@ Both people can read from a script. **The agent must sound smooth** on both call
 
 ## Tech video (max 60 sec)
 
+> **Read-aloud script:** word-for-word narration + shot list in [`tech-team-video-scripts.md`](tech-team-video-scripts.md).
+
 **Goal:** Show it’s real work, not actors reading a script.
 
 | Time | What to show |
@@ -191,6 +193,8 @@ The **trace screen is the Tech hero** — the real seller call plays on the left
 ---
 
 ## Team video (max 60 sec)
+
+> **Read-aloud script:** first-person line per person in [`tech-team-video-scripts.md`](tech-team-video-scripts.md).
 
 | Time | What |
 |---|---|
