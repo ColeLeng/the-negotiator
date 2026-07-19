@@ -12,6 +12,21 @@ This is the submission package design — not another architecture doc. Every ar
 
 Everything we submit must make that sentence feel **inevitable**, not aspirational.
 
+### Why customization / why now (jury + Team Video framing)
+
+Use this paragraph when jurors (or teammates) ask *why bridal / custom first* — not “rent-seeking,” not “fairer prices for everyone.”
+
+> Posted prices work when goods are close substitutes and willingness-to-pay is easy to observe. Unique and made-to-order goods are different: value is private and idiosyncratic, so a single list price often fails to clear the market — too high and there is no trade; too low and surplus goes to whoever showed up first, not whoever values the match most. That is why land and antiques use bidding, and why custom bridal already lives in phone quotes and haggling. The bottleneck has never been the economics — it has been human negotiation cost. Agentic commerce collapses that cost: agents can run parallel discovery and honest bargaining at scale, so customization becomes shoppable. Buyers gain real comparison and BATNA; merchants gain completed, better-matched custom trades instead of one blunt posted price. We start here because personalization surplus is largest in opaque, quote-based markets — and democratizing negotiation is what lets that product layer boom.
+
+**Say this; don’t say that**
+
+| Use | Avoid |
+|---|---|
+| Price discovery · bilateral match · negotiation cost → 0 | “Rent-seeking” (wrong term; invites nitpicks) |
+| Better matching + more completed custom trades | “Fairer prices for both sides every time” |
+| Negotiation / ZOPA (our product) | Equating us with open antique auctions |
+| Honest leverage · real BATNA | Opacity as the merchant’s long-term moat |
+
 ---
 
 ## 2. How judges score — what we optimize for
@@ -20,7 +35,7 @@ Everything we submit must make that sentence feel **inevitable**, not aspiration
 |---|---|---|
 | **Technical depth** | Real systems work, not a scripted TTS dialogue | ZOPA + dual value models · shared blackboard BATNA · honesty guard · contract-first A2A loop · ≥3 seller styles · price that *emerges* |
 | **Communication** | Docs + videos that a non-author can follow in &lt;10 min | Project summary · Demo / Tech / Team videos · README “done” checklist · transcript-cited recommendation in UI |
-| **Innovation & creativity** | Original framing + creative mechanism | Opaque-market wedge (bridal / config-swappable) · **honest** multi-agent leverage (blackboard, not bluffing) · attribute↔price tradeoffs, not price-only bots |
+| **Innovation & creativity** | Original framing + creative mechanism | Customization / price-discovery thesis · opaque-market wedge (bridal / config-swappable) · **honest** multi-agent leverage (blackboard, not bluffing) · attribute↔price tradeoffs, not price-only bots |
 
 **Implication:** Do not spend pitch time on stack trivia. Spend it on (1) the pain with a number, (2) the closed loop, (3) the moving price + why it isn’t a screenplay, (4) the honesty line.
 
@@ -36,17 +51,18 @@ Upload target: **projects.hack-nation.ai**. Cole owns sequencing, scripts, cuts,
 
 **Design:** Write it last, after Demo + Tech are locked, so claims match footage. Structure:
 
-1. **Hook (1–2 sentences)** — opaque quote markets; bridal as the wedge; movers/config-swappable as the general case.
-2. **What it does (3 beats)** — Estimator → Caller → parallel Closer/Orchestrator → ranked recommendation.
-3. **Proof of depth (2–3 sentences)** — dual reservation prices, ZOPA, blackboard BATNA, honesty guard; price moves from dynamics.
-4. **Conversation ethics (1 sentence)** — AI disclosure, no invented bids, structured endings.
-5. **Ask / outcome (1 sentence)** — demo shows a live concession and a transcript-backed pick.
+1. **Hook (1–2 sentences)** — posted prices fail for unique/custom goods; bridal as the wedge.
+2. **Why now (1–2 sentences)** — agents collapse negotiation cost → customization becomes shoppable.
+3. **What it does (3 beats)** — Estimator → Caller → parallel Closer/Orchestrator → ranked recommendation.
+4. **Proof of depth (2–3 sentences)** — dual reservation prices, ZOPA, blackboard BATNA, honesty guard; price moves from dynamics.
+5. **Conversation ethics (1 sentence)** — AI disclosure, no invented bids, structured endings.
+6. **Ask / outcome (1 sentence)** — demo shows a live concession and a transcript-backed pick.
 
-**Hard rules:** ≤300 words · no unverified metrics · name the vertical · name ElevenLabs only where we actually use it (intake / voice leg) — don’t overclaim.
+**Hard rules:** ≤300 words · no unverified metrics · name the vertical · name ElevenLabs only where we actually use it (intake / voice leg) — don’t overclaim · no “rent-seeking” / no “fairer for both on price.”
 
-**Draft skeleton (replace numbers only with demo-true facts):**
+**Draft skeleton (~220 words — replace numbers only with demo-true facts):**
 
-> Phone-priced markets hide real prices behind opaque quotes. For made-to-order bridal, buyers have high emotion, low leverage, and no time to call five boutiques. The Negotiator turns one confirmed product spec into parallel negotiations: an Estimator builds a structured `ProductSpec` (voice or document), a Caller ranks real comparable options, and Buyer Agents haggle against Seller Agents with hidden floors and distinct styles — trading soft attributes against price inside a real ZOPA. Parallel sessions share a blackboard so leverage is always a *real* competing offer, enforced by an honesty guard. The demo shows a price that moves during the call, then ranks closed deals with transcript evidence. Config swaps the vertical; the negotiation engine stays the same.
+> Posted prices work for substitutes. Made-to-order goods — like bridal — have private, idiosyncratic value, so a single list price often fails to clear the market. Those markets already run on phone quotes and haggling; the bottleneck is human negotiation cost, not the economics. The Negotiator collapses that cost: one confirmed `ProductSpec` (voice or document intake) fans out through a Caller to real comparable options, then Buyer Agents negotiate in parallel against Seller Agents with hidden floors and distinct styles — trading soft attributes against price inside a real ZOPA. Parallel sessions share a blackboard so leverage is always a *real* competing offer, enforced by an honesty guard. Buyers get comparison and BATNA; merchants get completed, better-matched custom trades instead of one blunt posted price. The demo shows a price that moves during the call, then ranks closed deals with transcript evidence. We start with customization because that is where personalization surplus is largest — and where democratizing negotiation lets that product layer scale. Config swaps the vertical; the engine stays the same.
 
 ---
 
@@ -295,6 +311,37 @@ We upload when:
 2. **Spokesperson** — Cole on Demo/Tech VO; full team on Team video.
 3. **Vertical wording** — “customized DTC bridal” primary; “movers via config” as one clause, not a second demo.
 4. **Whether to show document intake** — if flaky, say “voice + document paths share one schema” in Tech and show the confirmed spec once in Demo.
+
+---
+
+## 11. Team Slack copy (ready to paste)
+
+Post in the team channel so everyone shares one framing before Demo/Tech VO and the jury summary.
+
+```text
+@channel quick pitch-framing lock (please read — this is how we talk about *why bridal / custom first*)
+
+We tightened the “why this vertical” story for the Hack-Nation package. Full writeup + jury paragraph live in:
+docs/final-deliverable-proposal.md → “Why customization / why now”
+
+The insight (short):
+• Posted prices work for substitutes. Unique / made-to-order goods need *price discovery* (same reason land & antiques go to bidding — value is private & idiosyncratic).
+• Custom bridal already lives in phone quotes + haggling. The bottleneck isn’t the economics — it’s *human negotiation cost*.
+• Agentic commerce collapses that cost → parallel honest bargaining becomes normal → customization becomes shoppable at scale.
+• Dual win (careful wording): buyers get comparison + real BATNA; merchants get *completed, better-matched custom trades* — not “fairer prices for both every time.”
+• Our product is negotiation / ZOPA, not an open antique auction. We’re democratizing the mechanism.
+
+Please use this language in Team/Demo/Tech. Avoid: “rent-seeking,” “fairer for merchants and buyers on price.”
+
+Who this touches:
+• @Cole — owns jury summary + video VO; this is the cold-open / why-now line
+• @Suman — Tech video: contracts → ZOPA → blackboard as the *discovery* engine, not just plumbing
+• @Ella — seller floors / styles = why price *emerges* (discovery), not a script
+• @Jagger — Estimator + market framing: one confirmed spec is what makes custom goods negotiable in parallel
+• @Kazi — buyer value / utility: soft attrs ↔ price is the surplus we’re discovering
+
+If anything feels off for your module, reply in-thread before we freeze Demo VO. Cole will claim-lock the 150–300w Project Summary to this framing after the Demo cut.
+```
 
 ---
 
