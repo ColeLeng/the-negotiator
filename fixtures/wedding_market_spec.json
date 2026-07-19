@@ -1,0 +1,43 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "category": "WeddingDress",
+  "spec_id": "spec_market",
+  "attributes": [
+    {
+      "name": "color",
+      "value": "ivory",
+      "constraint": "soft",
+      "weight": 0.15,
+      "substitutions": ["champagne", "off-white"]
+    },
+    {
+      "name": "size",
+      "value": "US 8",
+      "constraint": "hard",
+      "weight": null,
+      "substitutions": []
+    },
+    {
+      "name": "silhouette",
+      "value": "A-line",
+      "constraint": "soft",
+      "weight": 0.2,
+      "substitutions": ["fit-and-flare", "sheath"]
+    },
+    {
+      "name": "fabric",
+      "value": "satin",
+      "constraint": "soft",
+      "weight": 0.1,
+      "substitutions": ["mikado", "crepe", "lace"]
+    }
+  ],
+  "negotiation": {
+    "target_price": 1800.0,
+    "reservation_price": 2400.0,
+    "currency": "USD",
+    "deadline_days": 30,
+    "must_have_summary": "ivory US 8 gown delivered within 30 days"
+  }
+}

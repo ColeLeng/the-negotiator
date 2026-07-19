@@ -67,6 +67,19 @@ Turns messy human input into a clean `ProductSpec` with ZOPA parameters. Three i
 ### 2 · Caller — *parallel quote gathering* (Cole)
 Fans out over the web (Exa/Tavily/Serper) + business listings (Google Places/Yelp) for **real** options, scores each with the buyer value function, returns a ranked `RankedOptions`. → [`negotiator/caller.py`](negotiator/caller.py)
 
+### 2b · Quote gathering — *the buyer's evidence pool across 12 seller personas* (Cole)
+Scenario 2 is the buyer's discovery pass: it takes the confirmed `ProductSpec` (a JSON
+requirements file) and runs a **buyer inquiry agent** against **12 seller agents**, each
+stamped with a distinct **disclosure persona** — `transparent`, `guarded`,
+`stonewaller` ("no prices by phone"), `upseller`, and the fake-low `lowball_teaser`. The
+buyer collects each vendor's structured, itemized quote into a shared **evidence pool**,
+**verifies** every quote against the vendor's own sticker and the market-benchmark median
+(catching bait-and-switch teasers and hidden fee-stacks), then **prunes** stonewallers,
+exposed teasers and over-budget stickers down to the **top 3–5 verified vendors** it hands
+to Scenario 3 as a `RankedOptions`. Every inquiry turn, verification and pruning decision
+is emitted to the tracer for the live agent-behavior panel. The 12-vendor market lives in
+[`data/market/`](data/market/) (real vendors, verifiable URLs). → [`negotiator/inquiry.py`](negotiator/inquiry.py) · [`negotiator/seller_market.py`](negotiator/seller_market.py) · [`negotiator/agents/inquiry_seller.py`](negotiator/agents/inquiry_seller.py) · [`negotiator/evidence.py`](negotiator/evidence.py) · API: `GET/POST /inquiry` · `GET /inquiry/trace` · `GET /inquiry/stream`
+
 ### 3 · Buyer Agent + Orchestrator — *negotiation & reporting* (Suman)
 The Orchestrator spawns one **Buyer Agent ⇄ Seller Agent** session per top-N option, each Buyer Agent maximizing utility with **honest** leverage only (a competing quote must exist on the shared **blackboard**), applying red-flag/BATNA logic, then ranks the closed deals with transcript citations. → [`negotiator/orchestrator.py`](negotiator/orchestrator.py) · [`negotiator/agents/buyer_agent.py`](negotiator/agents/buyer_agent.py) · [`negotiator/comms/`](negotiator/comms/)
 
@@ -132,7 +145,8 @@ pip install -r requirements.txt
 cp .env.example .env               # fill keys when wiring the real modules
 
 python run_demo.py                 # end-to-end MOCK — watch the price move (no keys needed)
-pytest -q                          # value-model + negotiation + caller + guard checks
+python run_scenario2.py            # Scenario 2 — 12 seller personas → verified pool → top 3–5
+pytest -q                          # value-model + negotiation + caller + guard + inquiry checks
 uvicorn app.main:app --reload      # API for the demo UI  →  GET /demo · GET /demo/stream
                                     # left-screen agent trace →  GET /trace/view
 

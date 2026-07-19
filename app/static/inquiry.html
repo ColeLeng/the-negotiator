@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Negotiator — 02 The Caller · Parallel Quote Gathering</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#202020; --surface-3:#262625;
+    --text-1:#ffffff; --text-2:#c3c2b7; --muted:#898781; --gridline:#2c2c2a; --border:rgba(255,255,255,0.14);
+    --buyer:#3987e5; --pool:#9085e9; --verify:#c98500; --shortlist:#0ca30c;
+    --transparent:#199e70; --guarded:#3987e5; --stonewaller:#8a8781; --upseller:#c98500; --lowball_teaser:#d95926;
+    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { color-scheme: light;
+      --page:#f9f9f7; --surface:#fcfcfb; --surface-2:#f1f0ec; --surface-3:#e9e8e2;
+      --text-1:#0b0b0b; --text-2:#52514e; --muted:#898781; --gridline:#e1e0d9; --border:rgba(11,11,11,0.14);
+      --buyer:#2a78d6; --pool:#4a3aa7; --verify:#eda100; --shortlist:#0ca30c;
+      --transparent:#1baf7a; --guarded:#2a78d6; --stonewaller:#8a8781; --upseller:#eda100; --lowball_teaser:#eb6834;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--page); color:var(--text-1);
+    font:13px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; height:100vh; display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:12px; padding:9px 16px; border-bottom:1px solid var(--border); flex:none; }
+  header h1 { font-size:14px; font-weight:600; margin:0; }
+  header .sub { color:var(--muted); font-size:12px; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px;
+    border:1px solid var(--border); font-size:11px; color:var(--text-2); }
+  .pill .dot { width:6px; height:6px; border-radius:999px; background:var(--muted); }
+  .pill.live .dot { background:var(--good); box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 25%,transparent); }
+  .pill.done .dot { background:var(--buyer); }
+  .pill.error .dot { background:var(--critical); }
+  .pill.src { border-style:dashed; }
+  .pill.flight { color:var(--text-1); }
+  .pill.flight b { color:var(--buyer); font-variant-numeric:tabular-nums; }
+  button.reconnect { margin-left:auto; background:var(--surface-2); color:var(--text-1); border:1px solid var(--border);
+    border-radius:6px; padding:6px 12px; font-size:12px; cursor:pointer; }
+  button.reconnect:hover { border-color:var(--muted); }
+
+  main { flex:1; display:flex; flex-direction:column; gap:10px; padding:11px 16px 12px; min-height:0; overflow:hidden; }
+
+  .section-label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.06em;
+    display:flex; align-items:center; gap:8px; }
+  .section-label .count { color:var(--text-2); text-transform:none; letter-spacing:0; font-size:11px; }
+
+  /* pipeline strip */
+  #pipeline { display:flex; align-items:stretch; gap:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:8px 10px; flex:none; }
+  .stage { flex:1; display:flex; align-items:center; gap:8px; padding:2px 10px; position:relative; }
+  .stage:not(:last-child)::after { content:"›"; position:absolute; right:-4px; color:var(--muted); font-size:15px; }
+  .stage .ico { width:9px; height:9px; border-radius:2px; background:var(--sc,var(--muted)); flex:none; transition:box-shadow 150ms; }
+  .stage.pulse .ico { box-shadow:0 0 0 4px color-mix(in srgb,var(--sc) 35%,transparent); }
+  .stage .t { font-size:11.5px; font-weight:600; }
+  .stage .d { font-size:10px; color:var(--muted); }
+
+  /* stats */
+  #stats { display:flex; gap:8px; flex-wrap:wrap; flex:none; }
+  .stat { background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:5px 12px;
+    display:flex; flex-direction:column; min-width:90px; }
+  .stat .k { font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); }
+  .stat .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; }
+
+  /* two-column body: calls + matrix */
+  .cols { flex:1; display:grid; grid-template-columns: 1.35fr 1fr; gap:12px; min-height:0; }
+  .col { display:flex; flex-direction:column; min-height:0; gap:6px; }
+
+  /* live call cards */
+  #calls { overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+    gap:8px; align-content:start; padding-right:4px; min-height:0; }
+  .call { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--persona,var(--muted));
+    border-radius:10px; padding:8px 10px; cursor:pointer; transition:box-shadow 150ms,opacity 200ms,border-color 150ms;
+    display:flex; flex-direction:column; }
+  .call:hover { border-color:var(--muted); }
+  .call.active { box-shadow:0 0 0 2px color-mix(in srgb,var(--persona) 30%,transparent); }
+  .call.dropped { opacity:0.5; }
+  .call.kept { border-color:color-mix(in srgb,var(--good) 60%,var(--border));
+    box-shadow:0 0 0 1px color-mix(in srgb,var(--good) 45%,transparent); }
+  .call .top { display:flex; align-items:center; gap:6px; }
+  .call .name { font-size:12.5px; font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .call .ptag { font-size:8.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--persona);
+    border:1px solid color-mix(in srgb,var(--persona) 45%,transparent); border-radius:999px; padding:1px 6px; flex:none; }
+  .call .live { width:6px; height:6px; border-radius:999px; background:var(--muted); flex:none; }
+  .call.active .live { background:var(--good); animation:blink 1s infinite; }
+  @keyframes blink { 50% { opacity:0.3; } }
+  .transcript { margin-top:6px; display:flex; flex-direction:column; gap:4px; max-height:120px; overflow-y:auto; }
+  .bubble { font-size:10.5px; line-height:1.35; padding:4px 7px; border-radius:8px; max-width:88%; }
+  .bubble.buyer { align-self:flex-end; background:color-mix(in srgb,var(--buyer) 20%,var(--surface-2)); border:1px solid color-mix(in srgb,var(--buyer) 35%,transparent); }
+  .bubble.seller { align-self:flex-start; background:var(--surface-2); border:1px solid var(--border); }
+  .bubble .who { font-size:8px; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); display:block; margin-bottom:1px; }
+  .call .foot { display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
+  .call .allin { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .status { font-size:9px; text-transform:uppercase; letter-spacing:0.03em; padding:1px 7px; border-radius:999px;
+    border:1px solid var(--border); color:var(--text-2); flex:none; white-space:nowrap; }
+  .status.verified{color:var(--good);border-color:color-mix(in srgb,var(--good) 55%,transparent);}
+  .status.flagged{color:var(--warning);border-color:color-mix(in srgb,var(--warning) 55%,transparent);}
+  .status.no_price{color:var(--muted);}
+  .status.infeasible{color:var(--lowball_teaser);border-color:color-mix(in srgb,var(--lowball_teaser) 55%,transparent);}
+  .status.red_flag{color:var(--critical);border-color:color-mix(in srgb,var(--critical) 55%,transparent);}
+  .status.inquiring{color:var(--buyer);border-color:color-mix(in srgb,var(--buyer) 45%,transparent);}
+
+  /* comparable matrix */
+  #matrix-wrap { flex:1; overflow:auto; border:1px solid var(--border); border-radius:10px; background:var(--surface); min-height:0; }
+  table.matrix { border-collapse:collapse; width:100%; font-size:11px; }
+  table.matrix th, table.matrix td { padding:5px 8px; text-align:right; border-bottom:1px solid var(--gridline); white-space:nowrap; }
+  table.matrix th { position:sticky; top:0; background:var(--surface-3); color:var(--muted); font-weight:600;
+    text-transform:uppercase; font-size:9.5px; letter-spacing:0.04em; z-index:1; }
+  table.matrix td.v, table.matrix th.v { text-align:left; }
+  table.matrix td.num { font-variant-numeric:tabular-nums; }
+  table.matrix td.pad { color:var(--warning); }
+  table.matrix td.strike { color:var(--muted); text-decoration:line-through; }
+  table.matrix tr.row { cursor:pointer; }
+  table.matrix tr.row:hover td { background:color-mix(in srgb,var(--buyer) 8%,transparent); }
+  table.matrix tr.dropped td { opacity:0.5; }
+  table.matrix tr.kept td { background:color-mix(in srgb,var(--good) 10%,transparent); }
+  table.matrix td.allin { font-weight:600; }
+  .ptag-inline { font-size:8.5px; text-transform:uppercase; color:var(--muted); }
+
+  /* drawer */
+  #drawer { position:fixed; top:0; right:0; height:100vh; width:min(460px,92vw); background:var(--surface);
+    border-left:1px solid var(--border); box-shadow:-16px 0 40px rgba(0,0,0,0.35); transform:translateX(100%);
+    transition:transform 200ms ease; z-index:10; display:flex; flex-direction:column; }
+  #drawer.open { transform:translateX(0); }
+  #drawer .dhead { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+  #drawer .dhead .name { font-size:14px; font-weight:600; }
+  #drawer .dbody { padding:12px 16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+  #drawer .close { margin-left:auto; background:none; border:1px solid var(--border); color:var(--text-1);
+    border-radius:6px; padding:3px 9px; cursor:pointer; }
+  .dsec { font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:5px; }
+  .dtrans { display:flex; flex-direction:column; gap:5px; }
+  .qtable { width:100%; border-collapse:collapse; font-size:11.5px; }
+  .qtable td { padding:3px 6px; border-bottom:1px solid var(--gridline); }
+  .qtable td.amt { text-align:right; font-variant-numeric:tabular-nums; }
+  .qtable td.opt { color:var(--muted); }
+  .qtable tr.total td { font-weight:700; border-top:1px solid var(--border); border-bottom:none; }
+  .reason { font-size:11.5px; color:var(--text-2); background:var(--surface-2); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; }
+  .reason .flag { color:var(--critical); }
+  #drawer a { color:var(--buyer); font-size:11px; word-break:break-all; }
+
+  #calls::-webkit-scrollbar,#matrix-wrap::-webkit-scrollbar,.transcript::-webkit-scrollbar,#drawer .dbody::-webkit-scrollbar{width:8px;height:8px;}
+  #calls::-webkit-scrollbar-thumb,#matrix-wrap::-webkit-scrollbar-thumb,.transcript::-webkit-scrollbar-thumb,#drawer .dbody::-webkit-scrollbar-thumb{background:var(--gridline);border-radius:4px;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>The Negotiator</h1>
+    <span class="sub">02 · The Caller — parallel quote gathering (agent ⇄ agent)</span>
+    <span class="pill src" id="src-pill" title="call list provenance">📍 call list…</span>
+    <span class="pill flight" id="flight-pill">in flight <b id="flight">0</b></span>
+    <span id="status-pill" class="pill"><span class="dot"></span><span id="status-label">connecting…</span></span>
+    <button class="reconnect" id="reconnect">Run again</button>
+  </header>
+  <main>
+    <div id="pipeline">
+      <div class="stage" data-stage="spec" style="--sc:var(--buyer)"><span class="ico"></span><div><div class="t">Requirements</div><div class="d">ProductSpec (JSON)</div></div></div>
+      <div class="stage" data-stage="calls" style="--sc:var(--buyer)"><span class="ico"></span><div><div class="t">Parallel Calls</div><div class="d">12 counterparty agents</div></div></div>
+      <div class="stage" data-stage="pool" style="--sc:var(--pool)"><span class="ico"></span><div><div class="t">Itemized Quotes</div><div class="d">structured &amp; comparable</div></div></div>
+      <div class="stage" data-stage="verify" style="--sc:var(--verify)"><span class="ico"></span><div><div class="t">Verify</div><div class="d">sticker + benchmark</div></div></div>
+      <div class="stage" data-stage="shortlist" style="--sc:var(--shortlist)"><span class="ico"></span><div><div class="t">Shortlist</div><div class="d">top 3–5 → negotiate</div></div></div>
+    </div>
+
+    <div id="stats">
+      <div class="stat"><span class="k">contacted</span><span class="v" id="s-contacted">0</span></div>
+      <div class="stat"><span class="k">peak parallel</span><span class="v" id="s-peak">0</span></div>
+      <div class="stat"><span class="k">firm quotes</span><span class="v" id="s-firm">0</span></div>
+      <div class="stat"><span class="k">verified</span><span class="v" id="s-verified">0</span></div>
+      <div class="stat"><span class="k">median all-in</span><span class="v" id="s-median">—</span></div>
+      <div class="stat"><span class="k">shortlisted</span><span class="v" id="s-short">0</span></div>
+    </div>
+
+    <div class="cols">
+      <div class="col">
+        <div class="section-label">Live calls <span class="count">— click any call to inspect the full transcript</span></div>
+        <div id="calls"></div>
+      </div>
+      <div class="col">
+        <div class="section-label">Comparable quote matrix <span class="count">— fees itemized, apples-to-apples</span></div>
+        <div id="matrix-wrap">
+          <table class="matrix">
+            <thead><tr>
+              <th class="v">Vendor</th><th>Base</th><th>Alter.</th><th>Veil</th><th>Rush</th><th>Ship</th>
+              <th>Custom</th><th>All-in</th><th class="v">Status</th>
+            </tr></thead>
+            <tbody id="matrix-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="drawer">
+    <div class="dhead"><span class="name" id="d-name">—</span><span class="ptag" id="d-persona"></span>
+      <button class="close" id="d-close">✕</button></div>
+    <div class="dbody">
+      <div><div class="dsec">Agent ⇄ agent transcript</div><div class="dtrans" id="d-trans"></div></div>
+      <div><div class="dsec">Itemized quote</div><table class="qtable"><tbody id="d-quote"></tbody></table></div>
+      <div><div class="dsec">Verification</div><div class="reason" id="d-reason">—</div></div>
+      <div><div class="dsec">Provenance</div><a id="d-src" href="#" target="_blank" rel="noopener">—</a></div>
+    </div>
+  </div>
+
+  <script>
+    const FEE_COLS = ["base","alterations","veil","rush","shipping","custom_sizing"];
+    const $ = (id) => document.getElementById(id);
+    function fmtUsd(n){ if(n==null||Number.isNaN(n)) return "—";
+      return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n); }
+    function setStatus(k,t){ $("status-pill").className="pill "+k; $("status-label").textContent=t; }
+    function pulseStage(s){ const el=document.querySelector(`.stage[data-stage="${s}"]`); if(!el)return;
+      el.classList.add("pulse"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("pulse"),600); }
+
+    const calls = new Map();   // option_id -> {vendor,persona,el,transEl,liveEl,allinEl,statusEl, turns:[], quote, verify}
+    let inFlight=0, peak=0, es=null;
+
+    function ensureCall(optionId, vendor, persona){
+      let c = calls.get(optionId);
+      if(c) return c;
+      const el=document.createElement("div");
+      el.className="call active"; el.style.setProperty("--persona",`var(--${persona||"stonewaller"})`);
+      el.innerHTML=`<div class="top"><span class="live"></span><span class="name">${vendor}</span>
+        <span class="ptag" style="--persona:var(--${persona})">${(persona||"").replace("_"," ")}</span></div>
+        <div class="transcript"></div>
+        <div class="foot"><span class="allin">—</span><span class="status inquiring">inquiring</span></div>`;
+      $("calls").appendChild(el);
+      c={ optionId, vendor, persona, el, transEl:el.querySelector(".transcript"),
+          allinEl:el.querySelector(".allin"), statusEl:el.querySelector(".status"),
+          liveEl:el.querySelector(".live"), turns:[], quote:null, verify:null };
+      el.addEventListener("click",()=>openDrawer(optionId));
+      calls.set(optionId,c);
+      return c;
+    }
+    function addBubble(c, who, text){
+      c.turns.push({who,text});
+      const b=document.createElement("div");
+      b.className="bubble "+(who==="buyer"?"buyer":"seller");
+      b.innerHTML=`<span class="who">${who==="buyer"?"buyer agent":c.vendor}</span>${text}`;
+      c.transEl.appendChild(b);
+      c.transEl.scrollTop=c.transEl.scrollHeight;
+    }
+
+    function matrixRow(c){
+      let tr=document.getElementById("mrow-"+c.optionId);
+      if(tr) return tr;
+      tr=document.createElement("tr"); tr.id="mrow-"+c.optionId; tr.className="row";
+      tr.innerHTML=`<td class="v">${c.vendor} <span class="ptag-inline">${(c.persona||"").replace("_"," ")}</span></td>`+
+        FEE_COLS.map(()=>`<td class="num">—</td>`).join("")+`<td class="num allin">—</td><td class="v"><span class="status">—</span></td>`;
+      tr.addEventListener("click",()=>openDrawer(c.optionId));
+      $("matrix-body").appendChild(tr);
+      return tr;
+    }
+    function fillMatrix(c){
+      const tr=matrixRow(c); const q=c.quote||{}; const items={};
+      (q.line_items||[]).forEach(li=>{ items[li.code]=li; });
+      const tds=tr.querySelectorAll("td");
+      FEE_COLS.forEach((code,i)=>{
+        const li=items[code]; const cell=tds[i+1];
+        if(li){ cell.textContent=fmtUsd(li.amount);
+          cell.className="num"+(li.optional?" pad":"")+((li.optional&&q.stripped)?" strike":""); }
+        else { cell.textContent="—"; cell.className="num"; }
+      });
+      tds[FEE_COLS.length+1].textContent = q.comparable_total!=null?fmtUsd(q.comparable_total):(q.ballpark?`~${fmtUsd(q.ballpark[0])}–${fmtUsd(q.ballpark[1])}`:"—");
+    }
+    function setMatrixStatus(c){
+      const tr=matrixRow(c); const st=(c.verify&&c.verify.status)||""; const sp=tr.querySelector(".status");
+      sp.textContent=st.replace("_"," "); sp.className="status "+st;
+    }
+
+    function openDrawer(optionId){
+      const c=calls.get(optionId); if(!c) return;
+      $("d-name").textContent=c.vendor;
+      $("d-persona").textContent=(c.persona||"").replace("_"," ");
+      $("d-persona").style.setProperty("--persona",`var(--${c.persona})`);
+      const dt=$("d-trans"); dt.innerHTML="";
+      c.turns.forEach(t=>{ const b=document.createElement("div"); b.className="bubble "+(t.who==="buyer"?"buyer":"seller");
+        b.innerHTML=`<span class="who">${t.who==="buyer"?"buyer agent":c.vendor}</span>${t.text}`; dt.appendChild(b); });
+      const q=c.quote||{}; const qt=$("d-quote"); qt.innerHTML="";
+      (q.line_items||[]).forEach(li=>{
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td class="${li.optional?"opt":""}">${li.label}${li.schedule_only?" (schedule)":li.optional?" (optional)":""}</td><td class="amt">${fmtUsd(li.amount)}</td>`;
+        qt.appendChild(tr);
+      });
+      if(q.comparable_total!=null){ const tr=document.createElement("tr"); tr.className="total";
+        tr.innerHTML=`<td>Comparable all-in</td><td class="amt">${fmtUsd(q.comparable_total)}</td>`; qt.appendChild(tr); }
+      else if(q.ballpark){ const tr=document.createElement("tr"); tr.className="total";
+        tr.innerHTML=`<td>Ballpark only</td><td class="amt">~${fmtUsd(q.ballpark[0])}–${fmtUsd(q.ballpark[1])}</td>`; qt.appendChild(tr); }
+      const v=c.verify||{}; const flags=(v.red_flags&&v.red_flags.length?v.red_flags:v.flags)||[];
+      let reason = v.notes||"—";
+      if(v.status){ reason = `<strong>${v.status.replace("_"," ").toUpperCase()}</strong> — ${v.notes||""}`; }
+      if(flags.length) reason += `<br/><span class="flag">⚑ ${flags.join(", ")}</span>`;
+      $("d-reason").innerHTML=reason;
+      const src=$("d-src"); if(q.source_url){ src.href=q.source_url; src.textContent=q.source_url; } else { src.textContent="—"; src.removeAttribute("href"); }
+      $("drawer").classList.add("open");
+    }
+    $("d-close").addEventListener("click",()=>$("drawer").classList.remove("open"));
+
+    function handle(evt){
+      const d=evt.detail||{};
+      if(evt.kind==="call_list"){ $("src-pill").textContent="📍 "+(d.source||"call list"); }
+      else if(evt.kind==="inquiry_start"){
+        pulseStage("calls");
+        const c=ensureCall(evt.option_id, evt.vendor, d.persona);
+        if(d.source_url) c.quote={...(c.quote||{}), source_url:d.source_url};
+        if(d.text) addBubble(c,"buyer",d.text);
+        inFlight++; peak=Math.max(peak,inFlight); $("flight").textContent=inFlight; $("s-peak").textContent=peak;
+        $("s-contacted").textContent=calls.size;
+      }
+      else if(evt.kind==="buyer_ask"){ const c=ensureCall(evt.option_id,evt.vendor); if(d.text) addBubble(c,"buyer",d.text); pulseStage("calls"); }
+      else if(evt.kind==="disclosure"){ const c=ensureCall(evt.option_id,evt.vendor,d.persona);
+        if(d.text) addBubble(c,"seller",d.text);
+        if(evt.price!=null) c.allinEl.textContent=fmtUsd(evt.price);
+        if(d.intent){ c.statusEl.textContent=(d.intent||"").replace(/_/g," "); c.statusEl.className="status inquiring"; }
+        pulseStage("calls");
+      }
+      else if(evt.kind==="call_end"){ const c=calls.get(evt.option_id);
+        if(c){ c.el.classList.remove("active"); }
+        inFlight=Math.max(0,inFlight-1); $("flight").textContent=inFlight;
+      }
+      else if(evt.kind==="evidence"){ pulseStage("pool");
+        const c=ensureCall(evt.option_id,evt.vendor,d.persona);
+        c.quote={ ...(c.quote||{}), line_items:d.line_items||[], base:d.base, headline:d.headline,
+          comparable_total:d.comparable_total, ballpark:d.ballpark, source_url:d.source_url||(c.quote&&c.quote.source_url),
+          listed_price:d.listed_price, stripped:(d.persona==="upseller") };
+        if(d.comparable_total!=null) c.allinEl.textContent=fmtUsd(d.comparable_total);
+        fillMatrix(c);
+      }
+      else if(evt.kind==="verification"){ pulseStage("verify");
+        const c=ensureCall(evt.option_id,evt.vendor); c.verify=d;
+        if(evt.price!=null) c.allinEl.textContent=fmtUsd(evt.price);
+        const st=d.status||""; c.statusEl.textContent=st.replace("_"," "); c.statusEl.className="status "+st;
+        setMatrixStatus(c);
+      }
+      else if(evt.kind==="prune"){ const c=calls.get(evt.option_id);
+        if(c){ c.el.classList.add("dropped"); const tr=document.getElementById("mrow-"+evt.option_id); if(tr) tr.classList.add("dropped"); } }
+      else if(evt.kind==="shortlist"){ pulseStage("shortlist");
+        (d.kept||[]).forEach(id=>{ const c=calls.get(id); if(c) c.el.classList.add("kept");
+          const tr=document.getElementById("mrow-"+id); if(tr) tr.classList.add("kept"); });
+        $("s-short").textContent=(d.kept||[]).length;
+      }
+      else if(evt.kind==="pool_summary"){ pulseStage("pool");
+        $("s-contacted").textContent=d.contacted??calls.size;
+        $("s-firm").textContent=d.firm_quotes??"0";
+        $("s-verified").textContent=d.verified??"0";
+        $("s-median").textContent=fmtUsd(d.median_comparable);
+        if(d.call_list_source) $("src-pill").textContent="📍 "+d.call_list_source;
+      }
+    }
+
+    function connect(){
+      calls.clear(); $("calls").innerHTML=""; $("matrix-body").innerHTML=""; $("drawer").classList.remove("open");
+      inFlight=0; peak=0;
+      ["s-contacted","s-peak","s-firm","s-verified","s-short","flight"].forEach(id=>$(id).textContent="0");
+      $("s-median").textContent="—";
+      setStatus("live","connecting…");
+      if(es) es.close();
+      es=new EventSource("/inquiry/stream");
+      es.addEventListener("trace",(ev)=>{ setStatus("live","live"); handle(JSON.parse(ev.data)); });
+      es.addEventListener("done",()=>{ setStatus("done","done"); es.close(); });
+      es.onerror=()=>{ setStatus("error","disconnected — click Run again"); es.close(); };
+    }
+    $("reconnect").addEventListener("click",connect);
+    connect();
+  </script>
+</body>
+</html>
