@@ -1,18 +1,23 @@
 """
 FastAPI surface (owner: Suman + Cole for UI wiring) — wires the modules for the Demo UI (§12).
 Everything here runs on mocks with no keys, so the UI can integrate immediately.
+Estimator intake routes (owner: Jagger) cover both required intake paths — voice
+(ElevenLabs Agents) and document (§5) — converging on the same ProductSpec pipeline.
 
     uvicorn app.main:app --reload
     # then: GET /demo  ·  POST /estimate  ·  POST /search  ·  POST /negotiate
     #       GET /demo/stream  (SSE for the live ticker + transcript)
+    #       POST /estimate/document  ·  POST /estimate/voice/webhook
+    #       GET /estimate/voice/agent-config/{vertical}  ·  POST /estimate/confirm
 """
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -20,7 +25,8 @@ from pydantic import BaseModel
 from negotiator import orchestrator
 from negotiator.caller import search
 from negotiator.contracts import ProductSpec, RankedOptions
-from negotiator.estimator import estimate
+from negotiator.estimator import confirm_spec, estimate, estimate_from_document, missing_requirements
+from negotiator.voice_intake import build_agent_config, handle_tool_call
 
 app = FastAPI(title="The Negotiator", version="0.1.0")
 
@@ -42,6 +48,25 @@ _DEMO_INPUT = "Ivory Pronovias wedding dress, US 8, ideally under $1800, hard ca
 
 class EstimateRequest(BaseModel):
     text: str
+    vertical: Optional[str] = None
+
+
+class DocumentEstimateRequest(BaseModel):
+    content: str                        # raw text, or base64 when is_base64=True (photos)
+    filename: str
+    document_type: str = "other"        # "quote" | "bill" | "inventory_list" | "photo" | "other"
+    vertical: Optional[str] = None
+    is_base64: bool = False
+
+
+class VoiceWebhookRequest(BaseModel):
+    tool_args: dict
+    vertical: Optional[str] = None
+
+
+class ConfirmRequest(BaseModel):
+    spec: ProductSpec
+    edits: Optional[dict] = None
 
 
 def _run_demo() -> dict[str, Any]:
@@ -67,7 +92,41 @@ def health() -> dict:
 
 @app.post("/estimate", response_model=ProductSpec)
 def estimate_endpoint(req: EstimateRequest) -> ProductSpec:
-    return estimate(req.text)
+    return estimate(req.text, vertical=req.vertical)
+
+
+@app.post("/estimate/document", response_model=ProductSpec)
+def estimate_document_endpoint(req: DocumentEstimateRequest) -> ProductSpec:
+    content = base64.b64decode(req.content) if req.is_base64 else req.content
+    return estimate_from_document(content, req.filename, req.document_type, vertical=req.vertical)
+
+
+@app.post("/estimate/voice/webhook", response_model=ProductSpec)
+def estimate_voice_webhook(req: VoiceWebhookRequest) -> ProductSpec:
+    """Point the ElevenLabs agent's `submit_intake` server tool at this endpoint."""
+    return handle_tool_call(req.tool_args, vertical=req.vertical)
+
+
+@app.get("/estimate/voice/agent-config/{vertical}")
+def estimate_voice_agent_config(vertical: str) -> dict:
+    try:
+        return build_agent_config(vertical)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/estimate/confirm", response_model=ProductSpec)
+def estimate_confirm_endpoint(req: ConfirmRequest) -> ProductSpec:
+    """The user-confirmation gate — nothing downstream may run on an unconfirmed spec."""
+    try:
+        return confirm_spec(req.spec, edits=req.edits)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@app.post("/estimate/missing")
+def estimate_missing_endpoint(spec: ProductSpec) -> dict:
+    return {"missing": missing_requirements(spec)}
 
 
 @app.post("/search", response_model=RankedOptions)
