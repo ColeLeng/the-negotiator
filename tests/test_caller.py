@@ -41,10 +41,9 @@ def test_search_filters_hard_constraint_violations():
 
 def test_search_populates_unmet_soft_and_scores_with_attrs():
     ranked = search(_demo_spec())
-    # At least one option should differ on a soft attr (e.g. champagne / comparable designer).
+    # At least one option should differ on a soft attr (e.g. brand not matched).
     assert any(o.unmet_soft for o in ranked.options)
-    # Perfect brand+color should outrank a substitution match at a similar/higher list price.
-    by_vendor = {o.vendor: o for o in ranked.options}
-    assert "Stillwhite (Pre-loved)" in by_vendor
-    assert "Azazie Bridal" in by_vendor
-    assert by_vendor["Stillwhite (Pre-loved)"].match_score > by_vendor["Azazie Bridal"].match_score
+    # Options are drawn from Ella's real store inventory.
+    assert any("Allure Bridals" in o.vendor or "Rebecca Ingram" in o.vendor for o in ranked.options)
+    # With soft matches ~equal across the ivory/US-8 stock, the cheapest listing ranks first.
+    assert ranked.options[0].listed_price == min(o.listed_price for o in ranked.options)

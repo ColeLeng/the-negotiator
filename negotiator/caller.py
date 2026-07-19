@@ -23,7 +23,7 @@ from urllib.parse import quote_plus
 
 import httpx
 
-from . import buyer_value
+from . import buyer_value, store_catalog
 from .contracts import Channel, ChannelType, Option, ProductSpec, RankedOptions
 
 _VERTICALS_DIR = Path(__file__).resolve().parent.parent / "config" / "verticals"
@@ -310,10 +310,31 @@ def _live_search(spec: ProductSpec, vertical: dict[str, Any]) -> list[_Listing]:
     return []
 
 
+def _listings_from_stores(spec: ProductSpec) -> list[_Listing]:
+    """Ella's real store inventory (data/market/*_stores.csv) as Caller listings, so
+    search matches against actual stock instead of an empty/thin catalog."""
+    vertical = (spec.category or os.getenv("VERTICAL") or "wedding-dress").strip().lower()
+    key = "wedding-dress" if ("wedding" in vertical or "dress" in vertical) else vertical
+    out: list[_Listing] = []
+    for s in store_catalog.load_store_listings(key):
+        out.append(_Listing(
+            vendor=s["vendor"],
+            source_url=s["source_url"] or "",
+            listed_price=s["listed_price"],
+            attributes=dict(s["attributes"]),
+            channel_type=s.get("channel_type", "voice"),
+            channel_endpoint=s.get("channel_endpoint"),
+        ))
+    return out
+
+
 def _catalog_for(spec: ProductSpec) -> list[_Listing]:
     category = (spec.category or "").lower()
     if "wedding" in category or "dress" in category or not category:
-        return list(_WEDDING_CATALOG)
+        stores = _listings_from_stores(spec)
+        # Prefer Ella's 12-store inventory; fall back to the small built-in list only
+        # if the data file is missing.
+        return stores or list(_WEDDING_CATALOG)
     # Generic fallback: synthesize around the price band but keep real-looking example URLs.
     target = spec.negotiation.target_price
     reservation = spec.negotiation.reservation_price
