@@ -395,6 +395,49 @@ def test_intent_from_conversation_parses_aliased_submission_json(monkeypatch):
     assert "target_price" not in intent["caller_dynamic_variables"]
 
 
+def test_intent_from_conversation_prefers_data_collection(monkeypatch):
+    """When ElevenLabs' own data_collection_results are present, they win over prose —
+    handling spoken numbers ('fifteen hundred' -> 1500) extracted server-side."""
+    import negotiator.voice_intake as vi
+
+    convo = {
+        "transcript": [
+            {"role": "user", "message": "ivory A-line, size US 8, Pronovias"},
+        ],
+        "analysis": {
+            "data_collection_results": {
+                "silhouette": {"value": "A-line"},
+                "color": {"value": "ivory"},
+                "size": {"value": "US 8"},
+                "designer": {"value": "Pronovias"},
+                "target_price": {"value": 1500},
+                "reservation_price": {"value": 2200},
+                "deadline_days": {"value": 120},
+                "priorities": {"value": "designer, silhouette, color"},
+            }
+        },
+    }
+    monkeypatch.setattr(vi, "fetch_conversation", lambda cid: convo)
+
+    intent = vi.intent_from_conversation("conv_dc", vertical="wedding-dress")
+    assert intent["budget"]["target_price"] == 1500.0
+    assert intent["budget"]["reservation_price"] == 2200.0
+    assert intent["timeline"]["deadline_days"] == 120
+    assert intent["priority_order"][0] == "designer"   # comma-string priorities parsed
+    by_name = {m["attribute"]: m["value"] for m in intent["must_haves"]}
+    assert by_name.get("size", "").upper().replace(" ", "") == "US8"
+
+
+def test_build_data_collection_has_prices_and_priorities():
+    from negotiator.voice_intake import build_data_collection
+    dc = build_data_collection("wedding-dress")
+    assert dc["target_price"]["type"] == "number"
+    assert dc["reservation_price"]["type"] == "number"
+    assert dc["deadline_days"]["type"] == "integer"
+    assert dc["priorities"]["type"] == "string"
+    assert "silhouette" in dc  # spec fields included
+
+
 def test_transcript_to_text_flattens_roles():
     from negotiator.voice_intake import transcript_to_text
     convo = {"transcript": [

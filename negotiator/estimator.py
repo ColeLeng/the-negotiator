@@ -433,7 +433,9 @@ def _find_field_value(field: dict, text: str) -> Optional[str]:
     key = field["key"]
     if field.get("type") == "enum":
         for value in field.get("values", []):
-            if re.search(re.escape(value), text, re.IGNORECASE):
+            # Word-bounded so a short value can't match inside a longer word
+            # (e.g. "custom" must not match inside "customization").
+            if re.search(rf"\b{re.escape(value)}\b", text, re.IGNORECASE):
                 return value
         return None
 
