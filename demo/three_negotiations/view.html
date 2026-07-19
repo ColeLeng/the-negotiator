@@ -88,6 +88,34 @@
     border-radius: 6px; padding: 3px 7px; display: inline-block;
   }
 
+  /* ---------------- per-lane mini architecture diagram ---------------- */
+  .mini-diagram {
+    position: relative;
+    height: 112px;
+    margin: 8px 14px 2px;
+    flex: none;
+  }
+  .mini-diagram svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .mini-node {
+    position: absolute;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    background: var(--surface-2);
+    font-size: 10.5px;
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 2px;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  }
+  .mini-node.pulse {
+    border-color: var(--node-color, var(--text-1));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-color, var(--text-1)) 30%, transparent);
+    background: color-mix(in srgb, var(--node-color, var(--text-1)) 16%, var(--surface-2));
+  }
+
   .checklist { padding: 8px 14px; border-bottom: 1px solid var(--gridline); }
   .check-item {
     display: flex; align-items: center; gap: 7px; font-size: 11.5px;
@@ -172,6 +200,83 @@
       fees_itemized: "Fees itemized",
     };
 
+    // ---------------------------------------------------------------------
+    // Per-lane mini architecture diagram: negotiator/agents/buyer_agent.py ->
+    // negotiator/guard.py -> the seller (Cole's voice), with the shared
+    // negotiator/comms/blackboard.py as the honest-leverage feedback loop.
+    // Same box-and-arrow language as /trace/view, scaled down to fit a lane.
+    // ---------------------------------------------------------------------
+    const MINI_NODES = [
+      { id: "buyer",      title: "Buyer Agent", x: 1,  y: 6,  w: 30, h: 34, color: "--buyer" },
+      { id: "guard",      title: "Guard",       x: 35, y: 6,  w: 30, h: 34, color: "--lever" },
+      { id: "seller",     title: "Seller",      x: 69, y: 6,  w: 30, h: 34, color: "--seller" },
+      { id: "blackboard", title: "Blackboard",  x: 1,  y: 62, w: 30, h: 34, color: "--lever" },
+    ];
+    const MINI_EDGES = [
+      ["buyer", "guard"],
+      ["guard", "seller"],
+      ["buyer", "blackboard", true, true], // bidirectional, dashed
+    ];
+
+    function buildMiniDiagram(container) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 100 100");
+      svg.setAttribute("preserveAspectRatio", "none");
+      svg.innerHTML = `<defs><marker id="mini-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+        markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"></path></marker></defs>`;
+      const byId = Object.fromEntries(MINI_NODES.map((n) => [n.id, n]));
+      for (const [fromId, toId, bidir, dashed] of MINI_EDGES) {
+        const a = byId[fromId], b = byId[toId];
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        let d;
+        if (a.y === b.y) {
+          d = `M ${a.x + a.w} ${a.y + a.h / 2} L ${b.x} ${b.y + b.h / 2}`;
+        } else {
+          const cx = a.x + a.w / 2;
+          d = `M ${cx} ${a.y + a.h} L ${cx} ${b.y}`;
+        }
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "var(--gridline)");
+        path.setAttribute("stroke-width", "0.6");
+        path.setAttribute("marker-end", "url(#mini-arrow)");
+        if (bidir) path.setAttribute("marker-start", "url(#mini-arrow)");
+        if (dashed) path.setAttribute("stroke-dasharray", "2,1.6");
+        svg.appendChild(path);
+      }
+      container.appendChild(svg);
+
+      const nodeEls = {};
+      for (const n of MINI_NODES) {
+        const el = document.createElement("div");
+        el.className = "mini-node";
+        el.style.setProperty("--node-color", `var(${n.color})`);
+        Object.assign(el.style, { left: n.x + "%", top: n.y + "%", width: n.w + "%", height: n.h + "%" });
+        el.textContent = n.title;
+        container.appendChild(el);
+        nodeEls[n.id] = el;
+      }
+      return nodeEls;
+    }
+
+    function pulseMiniNode(nodeEls, nodeId) {
+      const el = nodeEls[nodeId];
+      if (!el) return;
+      el.classList.add("pulse");
+      clearTimeout(el._pulseTimer);
+      el._pulseTimer = setTimeout(() => el.classList.remove("pulse"), 700);
+    }
+
+    // Map a TraceEvent onto the mini-diagram node(s) it should light up.
+    function nodesForEvent(evt) {
+      if (evt.kind === "blackboard_update") return ["blackboard"];
+      if (evt.kind === "guard_intervention" || evt.kind === "honesty_check") return ["buyer", "guard"];
+      if (evt.actor === "buyer") return ["buyer"];
+      if (evt.actor === "seller") return ["seller"];
+      return [];
+    }
+
     const lanesEl = document.getElementById("lanes");
     const statusPill = document.getElementById("status-pill");
     const statusLabel = document.getElementById("status-label");
@@ -198,13 +303,16 @@
           <div class="played">${meta.played}</div>
           <div class="proves">${meta.proves}</div>
         </div>
+        <div class="mini-diagram"></div>
         <div class="checklist"></div>
         <div class="price-row"><span class="status"></span><span class="price">—</span></div>
         <div class="lane-feed"></div>
       `;
       lanesEl.appendChild(el);
+      const nodeEls = buildMiniDiagram(el.querySelector(".mini-diagram"));
       return {
         el,
+        nodeEls,
         checklistEl: el.querySelector(".checklist"),
         statusEl: el.querySelector(".status"),
         priceEl: el.querySelector(".price"),
@@ -260,6 +368,7 @@
       }
 
       appendRow(lane, evt);
+      for (const nodeId of nodesForEvent(evt)) pulseMiniNode(lane.nodeEls, nodeId);
       if (evt.price !== null && evt.price !== undefined) {
         lane.priceEl.textContent = fmtUsd(evt.price);
         lane.priceEl.classList.add("flash");
