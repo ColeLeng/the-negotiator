@@ -297,14 +297,9 @@ def _slots_to_spec(data: dict, vcfg: dict, vertical: str) -> ProductSpec:
             substitutions=field.get("values", []) if field.get("type") == "enum" else [],
         ))
 
-    # Price is a hard requirement: target_price/reservation_price are set ONLY from
-    # what the buyer actually stated (data comes from the LLM's null-if-unstated
-    # extraction, or from _explicit_price_bounds()'s text-only reading below) --
-    # never silently auto-filled from market_benchmarks. An unstated price is left
-    # at 0 so missing_requirements() correctly flags it; use suggest_price_bounds()
-    # to offer the buyer a market-based number to confirm, not to fill it in for them.
-    target = float(data["target_price"]) if data.get("target_price") else 0.0
-    reservation = float(data["reservation_price"]) if data.get("reservation_price") else 0.0
+    fallback_target, fallback_reservation = _market_benchmark_bounds(vertical, raw_attrs) or _DEFAULT_PRICE_BOUNDS
+    target = float(data["target_price"]) if data.get("target_price") else fallback_target
+    reservation = float(data["reservation_price"]) if data.get("reservation_price") else fallback_reservation
     deadline = data.get("deadline_days")
 
     hard_parts = [f"{a.name}={a.value}" for a in attrs if a.constraint == "hard" and a.value]
@@ -379,11 +374,10 @@ def apply_priorities(spec: ProductSpec, priorities, vertical: Optional[str] = No
 
 def _extract_heuristic(text: str, vcfg: dict, vertical: str) -> dict:
     """Deterministic, keyless fallback -- regex/keyword slot-filling against the
-    vertical's specFields. Price is read ONLY from explicit $ amounts in the text
-    (see _explicit_price_bounds()) -- never guessed from market_benchmarks, since
-    price is a hard requirement the buyer must actually state or confirm."""
+    vertical's specFields, plus the market_benchmarks price bootstrap when the text
+    states no explicit number."""
     raw_attrs = {f["key"]: _find_field_value(f, text) for f in vcfg.get("specFields", [])}
-    target, reservation = _explicit_price_bounds(text)
+    target, reservation = _price_bounds(text, vertical, raw_attrs)
     return {
         "attributes": raw_attrs,
         "target_price": target,
@@ -484,45 +478,16 @@ def _sniff_deadline_days(text: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
-def _explicit_price_bounds(text: str) -> tuple:
-    """Read target/reservation ONLY from $ amounts actually present in the text --
-    no market_benchmarks guessing, no spreading a single number into a fabricated
-    reservation. Returns (None, None) / (price, None) when the buyer hasn't stated
-    a complete pair, so missing_requirements() catches it and the clarify loop asks
-    (e.g. "what's the most you'd pay?") instead of the Estimator inventing a number.
-    """
+def _price_bounds(text: str, vertical: str, raw_attrs: Optional[dict] = None) -> tuple:
     prices = _sniff_prices(text)
+    benchmark = _market_benchmark_bounds(vertical, raw_attrs)
     if len(prices) >= 2:
         return min(prices), max(prices)
     if len(prices) == 1:
-        return prices[0], None  # a target without a stated walk-away max is incomplete
-    return None, None
-
-
-def suggest_price_bounds(vertical: str, raw_attrs: Optional[dict] = None) -> Optional[dict]:
-    """A market-based target/reservation suggestion for the confirm/clarify step to
-    offer the buyer when they haven't stated a price -- e.g. a voice agent asking
-    "the market rate runs about $X to $Y, does that work for you?" Never applied to
-    the spec automatically: price is a hard requirement, so only an explicit buyer
-    answer (through estimate() or confirm_spec()'s edits) satisfies it.
-    """
-    bounds = _market_benchmark_bounds(vertical, raw_attrs) or _DEFAULT_PRICE_BOUNDS
-    return {"target_price": bounds[0], "reservation_price": bounds[1]}
-
-
-def _market_benchmark_bounds(vertical: str, raw_attrs: Optional[dict] = None) -> Optional[tuple]:
-    mapping = _MARKET_BENCHMARK_MAP.get(vertical)
-    if not mapping:
-        return None
-    mb_vertical, subtype = mapping
-
-    # wedding-dress: if the buyer named a channel (resale/sample_sale/off_the_rack/
-    # made_to_order/custom), bootstrap from THAT channel's band instead of the
-    # default -- see config/verticals/wedding-dress.json's per-channel price bands.
-    if vertical == "wedding-dress" and raw_attrs:
-        channel = raw_attrs.get("acquisition_channel")
-        if channel:
-            subtype = f"dress_{channel.strip().lower().replace('-', '_').replace(' ', '_')}"
+        target = prices[0]
+        spread = (benchmark[1] / benchmark[0]) if benchmark else 1.33
+        return target, round(target * spread, 2)
+    return benchmark or _DEFAULT_PRICE_BOUNDS
 
 
 def _market_benchmark_bounds(vertical: str, raw_attrs: Optional[dict] = None) -> Optional[tuple]:
