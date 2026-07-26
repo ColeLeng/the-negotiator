@@ -34,6 +34,8 @@ from .contracts import Attribute, Negotiation, ProductSpec
 
 _CONFIG_DIR = Path(__file__).resolve().parent.parent / "config" / "verticals"
 _DEFAULT_VERTICAL = "wedding-dress"
+_DEFAULT_PRICE_BOUNDS = (1800.0, 2400.0)  # last-resort target/reservation when no
+                                           # market_benchmark mapping exists for a vertical
 
 # Bridges to negotiator/market_benchmarks.py: when no price is stated in the intake
 # text, the Estimator bootstraps target/reservation from vertical market research
@@ -87,6 +89,13 @@ def load_vertical_config(vertical: str) -> dict:
     return json.loads(path.read_text())
 
 
+def _resolve_vertical(vertical: Optional[str]) -> str:
+    """An explicit vertical always wins; otherwise fall back to the VERTICAL env var,
+    then the module default. Shared by every public entry point so none of them can
+    silently disagree on which vertical "no argument given" means."""
+    return vertical or os.getenv("VERTICAL", _DEFAULT_VERTICAL)
+
+
 def estimate(input_text: Union[str, bytes], vertical: Optional[str] = None) -> ProductSpec:
     """
     IN: a free-text requirements paragraph, a voice transcript, or flattened voice
@@ -94,7 +103,7 @@ def estimate(input_text: Union[str, bytes], vertical: Optional[str] = None) -> P
     OUT: exactly one schema-valid ProductSpec.
     """
     text = input_text.decode() if isinstance(input_text, bytes) else str(input_text)
-    vertical = vertical or os.getenv("VERTICAL", _DEFAULT_VERTICAL)
+    vertical = _resolve_vertical(vertical)
     vcfg = load_vertical_config(vertical)
 
     data = None
@@ -288,7 +297,7 @@ def _slots_to_spec(data: dict, vcfg: dict, vertical: str) -> ProductSpec:
             substitutions=field.get("values", []) if field.get("type") == "enum" else [],
         ))
 
-    fallback_target, fallback_reservation = _market_benchmark_bounds(vertical, raw_attrs) or (1800.0, 2400.0)
+    fallback_target, fallback_reservation = _market_benchmark_bounds(vertical, raw_attrs) or _DEFAULT_PRICE_BOUNDS
     target = float(data["target_price"]) if data.get("target_price") else fallback_target
     reservation = float(data["reservation_price"]) if data.get("reservation_price") else fallback_reservation
     deadline = data.get("deadline_days")
@@ -352,7 +361,7 @@ def apply_priorities(spec: ProductSpec, priorities, vertical: Optional[str] = No
     new spec (original untouched). Used by the voice path, whose structured tool-call
     carries priorities the flattened-text convergence step can't. No-op if priorities is
     empty or names no soft fields."""
-    vertical = vertical or os.getenv("VERTICAL", _DEFAULT_VERTICAL)
+    vertical = _resolve_vertical(vertical)
     weights = _priority_weights(priorities, load_vertical_config(vertical))
     if not weights:
         return spec
@@ -478,7 +487,7 @@ def _price_bounds(text: str, vertical: str, raw_attrs: Optional[dict] = None) ->
         target = prices[0]
         spread = (benchmark[1] / benchmark[0]) if benchmark else 1.33
         return target, round(target * spread, 2)
-    return benchmark or (1800.0, 2400.0)
+    return benchmark or _DEFAULT_PRICE_BOUNDS
 
 
 def _market_benchmark_bounds(vertical: str, raw_attrs: Optional[dict] = None) -> Optional[tuple]:
