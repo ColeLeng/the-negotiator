@@ -28,6 +28,7 @@ from negotiator.estimator import (
     estimate,
     estimate_from_document,
     missing_requirements,
+    suggest_price_bounds,
     to_buyer_intent,
 )
 from negotiator.voice_intake import (
@@ -109,13 +110,26 @@ def test_fully_specified_ecommerce_spec_has_no_missing_requirements():
 # Price bootstrap -- when no $ amount is stated, fall back to market_benchmarks
 # -----------------------------------------------------------------------------
 
-def test_missing_price_falls_back_to_market_benchmarks():
-    """No dollar figure anywhere in the text -- target/reservation must come from
-    market_benchmarks.get_price_bounds('b2b_packaging_smb', 'annual_contract')."""
+def test_missing_price_is_flagged_not_auto_filled():
+    """Price is a hard requirement: no dollar figure anywhere in the text must leave
+    target/reservation unset and land in missing_requirements() -- the Estimator must
+    never silently substitute a market_benchmarks guess for a number the buyer never
+    actually gave."""
     text = "material_spec: kraft mailer; minimum_order_quantity: 3000; dimensions: 10x8x2"
     spec = estimate(text, vertical=ECOMMERCE)
-    assert spec.negotiation.target_price == 30000.0
-    assert spec.negotiation.reservation_price == 42000.0
+    assert spec.negotiation.target_price == 0.0
+    assert spec.negotiation.reservation_price == 0.0
+    missing = missing_requirements(spec)
+    assert "target_price" in missing
+    assert "reservation_price" in missing
+
+
+def test_suggest_price_bounds_offers_the_market_benchmark_without_applying_it():
+    """suggest_price_bounds() is the clarify-loop's tool for proposing a number --
+    it must NOT be what estimate() uses to fill the spec (that's the whole point of
+    the previous test)."""
+    suggestion = suggest_price_bounds(ECOMMERCE)
+    assert suggestion == {"target_price": 30000.0, "reservation_price": 42000.0}
 
 
 # -----------------------------------------------------------------------------
@@ -176,8 +190,10 @@ def test_csv_inventory_list_document_extracts_structured_fields():
     assert by_name["minimum_order_quantity"].value == "3000"
     assert by_name["dimensions"].value == "10x8x2"
     assert by_name["payment_terms"].value == "NET-15"
-    # No $ figure anywhere in the CSV -- price bootstrap should kick in.
-    assert spec.negotiation.target_price == 30000.0
+    # No $ figure anywhere in the CSV -- price is a hard requirement, so it's left
+    # unset (flagged by missing_requirements()), not guessed from market_benchmarks.
+    assert spec.negotiation.target_price == 0.0
+    assert "target_price" in missing_requirements(spec)
 
 
 # -----------------------------------------------------------------------------

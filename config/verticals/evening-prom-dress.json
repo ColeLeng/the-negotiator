@@ -1,0 +1,30 @@
+{
+  "vertical": "evening-prom-dress",
+  "displayName": "Evening & Prom Dresses (DTC)",
+  "market": "DTC",
+  "description": "E-commerce formal-dress catalog modeled on Misshow: evening gowns, prom/homecoming dresses, pageant and wedding-guest dresses. Same hard/soft judgment standard as wedding-dress.json (size + event date are hard; style/color/fabric/etc. are soft and substitutable) -- this vertical exists because Misshow's actual catalog is far broader than bridal alone, and the color/length range is much wider than a wedding gown's.",
+  "specFields": [
+    { "key": "size", "type": "string", "constraint": "hard", "prompt": "What dress size (US)?" },
+    { "key": "event_date", "type": "date", "constraint": "hard", "prompt": "Roughly when is the event? A timeframe like 'about six weeks' is fine." },
+    { "key": "silhouette", "type": "enum", "values": ["A-line", "ball-gown", "mermaid", "sheath", "fit-and-flare", "trumpet"], "constraint": "soft", "prompt": "What silhouette are you looking for?" },
+    { "key": "color", "type": "enum", "values": ["red", "navy", "emerald", "black", "gold", "silver", "blush", "ivory", "white", "champagne", "burgundy", "royal-blue", "lavender"], "constraint": "soft", "prompt": "What color?" },
+    { "key": "dress_length", "type": "enum", "values": ["floor-length", "tea-length", "mini", "high-low"], "constraint": "soft", "prompt": "What length -- floor-length, tea-length, short/mini, or high-low?" },
+    { "key": "occasion_type", "type": "enum", "values": ["prom", "homecoming", "evening-gala", "wedding-guest", "pageant"], "required": false, "prompt": "What's the occasion -- prom, homecoming, an evening gala, a wedding as a guest, or pageant?" },
+    { "key": "embellishment", "type": "string", "required": false, "prompt": "Any embellishment preference (beading, sequins, lace, rhinestones, or plain)?" },
+    { "key": "fabric", "type": "string", "required": false, "prompt": "Any fabric preference (satin, chiffon, tulle, velvet)?" },
+    { "key": "neckline", "type": "string", "required": false, "prompt": "Neckline (sweetheart, V-neck, halter, square, one-shoulder)?" },
+    { "key": "designer", "type": "string", "required": false, "prompt": "A specific designer/brand in mind?" },
+    { "key": "customization", "type": "string", "required": false, "prompt": "Any customization (custom measurements, added straps, color change)?" },
+    { "key": "acquisition_channel", "type": "enum", "values": ["off_the_rack", "made_to_order", "custom"], "required": false, "prompt": "In stock and ready to ship, made-to-order, or fully custom?" }
+  ],
+  "priceBenchmark": {
+    "source": "TODO -- not yet researched. Placeholder only; do not treat as a cited benchmark. Needs a real pass (e.g. Misshow's own catalog spread by category) before suggest_price_bounds() for this vertical is trustworthy.",
+    "currency": "USD",
+    "median": 250,
+    "p25": 150,
+    "p75": 450,
+    "note": "Placeholder figures loosely reflecting typical DTC prom/evening dress pricing (well below bridal). Replace before relying on this for red-flag detection or price suggestions."
+  },
+  "disclosure": "Hi, this is an AI assistant calling on behalf of a customer shopping for a dress. Happy to say up front that I'm an AI -- I'm just gathering some pricing and availability. Is now an okay time for a couple of quick questions?",
+  "intakeGreeting": "Hi! I'm your personal shopping assistant -- I can find and negotiate a dress for you, whether it's for prom, a gala, or another event. To get started, tell me about the dress you're picturing and when you need it by."
+}
